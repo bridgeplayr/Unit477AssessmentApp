@@ -1,0 +1,122 @@
+Think of Git as a three‑step conveyor belt:
+
+Working Directory → Staging Area → Local Repository → GitHub
+Each command operates on one stage of that conveyor belt.
+
+Let’s break it down.
+
+⭐ 1. git add — choose which files will be included in the next commit
+		Scope: individual files, or all files, depending on what you specify.
+
+Examples:
+
+Add one file:
+	git add controller.php
+
+Add multiple files:
+	git add index.php helperfunctions.php
+
+Add everything that changed:
+	git add .
+	This is the “I want these changes in my next snapshot” step.
+
+	Nothing is saved yet.  
+	You’re just selecting what will be committed.
+
+⭐ 2. git commit — save a snapshot of the staged changes
+		Scope: only the files you added.
+
+If you run:
+
+	git add controller.php
+	git commit -m "Fix player lookup logic"
+	Only controller.php is included in that commit.
+
+If you run:
+
+	git add .
+	git commit -m "Refactor controller and index"
+	Then everything you changed is included.
+
+A commit is:
+
+	a milestone
+
+	a save point
+
+	a rollback point
+
+	a historical record
+
+		It lives only on your local machine until you push.
+
+⭐ 3. git push — upload your commits to GitHub
+		Scope: all commits you’ve made since the last push.
+
+You don’t push files.
+You push commits.
+
+Example:
+	git commit -m "Fix date logic"
+	git commit -m "Add cookie support"
+	git commit -m "Refactor player lookup"
+	git push
+		All three commits go to GitHub at once.
+
+This is why your instinct is correct:
+“I push only when I’m ready to save all the changes on GitHub.”
+Exactly right.
+
+⭐ Putting it together (the Richard mental model)
+	✔ add = “select the files I want to save”
+	✔ commit = “save a snapshot of those selected files”
+	✔ push = “upload my saved snapshots to GitHub”
+		That’s the whole system.
+
+⭐ A simple analogy
+Imagine you’re packing boxes:
+
+Working directory
+	Your desk — files are lying around.
+
+git add
+	You pick which items go into the box.
+
+git commit
+	You seal the box and label it.
+
+git push
+	You ship the box to GitHub.
+
+⭐ Your workflow (the correct one)
+	You already described the ideal workflow:
+
+✔ Work locally
+✔ Commit for each milestone
+✔ Push only when ready
+
+
+Here’s how that looks in Git commands:
+	git status
+	git add .
+	git commit -m "Fix multiple-match player lookup"
+	git add .
+	git commit -m "Improve date fallback logic"
+	git add .
+	git commit -m "Add cookie support"
+	git push
+
+Perfect discipline.
+
+⭐ Bonus: the most important Git command
+	Run this constantly:
+
+	git status
+		It tells you:
+			what changed
+			what’s staged
+			what’s not staged
+			what will be committed
+			what won’t be committed
+
+	It’s your dashboard.
