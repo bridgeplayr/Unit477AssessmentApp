@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/config.php';
+?>
+
 <!DOCTYPE HTML>  
 
 <p style="text-align:right; font-size:0.8em;">
