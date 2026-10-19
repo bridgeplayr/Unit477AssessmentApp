@@ -15,7 +15,7 @@
 	
 </head>
 
-<body background="../images/backgrou.gif">
+<body background="images/backgrou.gif">
 <div id="top" class="column">
 <h1 style='text-align:center'>Unit 477 Bridge player self-assessment app</h1>
 
