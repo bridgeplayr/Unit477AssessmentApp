@@ -1,0 +1,61 @@
+
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="50" uniqueCount="14">
+<si>
+<t>Projected
+</t>
+</si>
+<si>
+<t>Actual
+</t>
+</si>
+<si>
+<t>Budget
+</t>
+</si>
+<si>
+<t>Qtr 1
+</t>
+</si>
+<si>
+<t>Qtr 2
+</t>
+</si>
+<si>
+<t>Qtr 3
+</t>
+</si>
+<si>
+<t>Qtr 4
+</t>
+</si>
+<si>
+<t>Financial Period
+</t>
+</si>
+<si>
+<t>High
+</t>
+</si>
+<si>
+<t>Average
+</t>
+</si>
+<si>
+<t>Low
+</t>
+</si>
+<si>
+<t>Opening
+</t>
+</si>
+<si>
+<t>Closing
+</t>
+</si>
+<si>
+<t>Volume
+</t>
+</si>
+</sst>

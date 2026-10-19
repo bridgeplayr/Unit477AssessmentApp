@@ -1,0 +1,33 @@
+<?php
+
+...
+    private function writePlotGroup(?DataSeries $plotGroup, $groupType, XMLWriter $objWriter, &$catIsMultiLevelSeries, &$valIsMultiLevelSeries, &$plotGroupingType): void
+    {
+...
+            //    Formatting for the points
+            if   (($groupType == DataSeries::TYPE_LINECHART) || ($groupType == DataSeries::TYPE_STOCKCHART)) {
+              ...
+           }
+
++           // suppress lines connecting markers
++           if (!$plotSeriesValues->isLine() && $groupType == DataSeries::TYPE_SCATTERCHART )
++           {
++             $objWriter->startElement('c:spPr');
++             $objWriter->startElement('a:ln');
++             $objWriter->writeAttribute('w', 0);
++             $objWriter->startElement('a:noFill');
++             $objWriter->endElement();  // a:noFill
++             $objWriter->endElement();  // a:ln
++             $objWriter->endElement();  // c:spPr
++           }
+
+            // specify Marker type, size, & color
+...
+            // add Trendline
+...
+            if (($groupType === DataSeries::TYPE_BARCHART) || ($groupType === DataSeries::TYPE_BARCHART_3D) || ($groupType === DataSeries::TYPE_BUBBLECHART)) 
+            {
+...
+             }
+
+            //    Category Labels
