@@ -1,7 +1,8 @@
 <?php 
 
 // namespace PhpOffice\PhpSpreadsheet\Chart;
-require_once('vendor/autoload.php');
+// require_once('vendor/autoload.php');
+require_once __DIR__ . '/vendor/phpspreadsheetMYversion/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;

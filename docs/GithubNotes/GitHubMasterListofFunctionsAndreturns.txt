@@ -1,0 +1,250 @@
+ChartColor properties --
+    /** @var string */
+    private $value = '';
+
+    /** @var string */
+    private $type = '';
+
+    /** @var ?int */
+    private $alpha;
+
+ChartColor functions --
+    public function getValue(): string
+        return $this->value;
+    public function setValue(string $value): self
+        return $this;
+    public function getType(): string
+        return $this->type;
+    public function setType(string $type): self
+        return $this;
+    public function getAlpha(): ?int
+        return $this->alpha;
+    public function setAlpha(?int $alpha): self
+        return $this;
+    public function setColorProperties(?string $color, $alpha, ?string $type): self
+        return $this;
+    public function setColorPropertiesArray(array $color): self
+        return $this;
+     * @return null|int|string
+    public function getColorProperty($propertyName)
+        return $retVal;
+    public static function alphaToXml(int $alpha): string
+        return (string) (100 - $alpha) . '000';
+    public static function alphaFromXml($alpha): int
+        return 100 - ((int) $alpha / 1000);
+
+
+DSV functions --
+		...
+    public function getPointMarker()
+        return $this->pointMarker;
+    public function setPointMarker($marker)
+        return $this;
+    public function getMarkerColor1(): ChartColor
+        return $this->markerColor1;
+    public function getMarkerColor2(): ChartColor
+        return $this->markerColor2;
+    public function getPointSize(): int
+        return $this->pointSize;
+    public function setPointSize(int $size = 3)
+        return $this;
+     * @return string
+    public function getFormatCode()
+        return $this->formatCode;
+    public function setFormatCode($formatCode)
+        return $this;
+     * @return int
+    public function getPointCount()
+        return $this->pointCount;
+     * @return null|string|string[] HEX color or array with HEX colors
+    public function getFillColor()
+        return $this->fillColor;
+     * @return   DataSeriesValues
+    public function setFillColor($color)
+        return $this;
+     * @return bool true if validation was successful
+    private function validateColor($color)
+        return true;
+     * @return null|float|int
+    public function getLineWidth()
+        return $this->lineStyleProperties['width'];
+    public function setLineWidth($width)
+        return $this;
+     * @return null|bool
+    public function isMultiLevelSeries()
+            return is_array(array_values($this->dataValues)[0]);
+        return null;
+     * Return the level count of a multi-level Data Series.
+     * @return int
+    public function multiLevelCount()
+        return $levelCount;
+     * @return mixed[]
+    public function getDataValues()
+        return $this->dataValues;
+     * @return mixed
+    public function getDataValue()
+            return null;
+            return $this->dataValues[0];
+        return $this->dataValues;
+    public function setDataValues($dataValues)
+        $this->dataValues = Functions::flattenArray($dataValues);
+        return $this;
+    public function refresh(Worksheet $worksheet, bool $flatten = true): void
+                $this->dataValues = Functions::flattenArray($newDataValues);
+                    $this->dataValues = Functions::flattenArray($newDataValues);
+    public function getScatterLines(): bool
+        return $this->scatterLines;
+    public function setScatterLines(bool $scatterLines): self
+        return $this;
+    public function getBubble3D(): bool
+        return $this->bubble3D;
+    public function setBubble3D(bool $bubble3D): self
+        return $this;
+    public function getSchemeClr(): string
+        return $this->schemeClr;
+    public function setSchemeClr(string $schemeClr): self
+        return $this;
+    public function getPrstClr(): string
+        return $this->prstClr;
+    public function setPrstClr(string $prstClr): self
+        return $this;
+     * @return bool
+    public function getSmoothLine()
+        return $this->smoothLine;
+    public function setSmoothLine($smoothLine)
+        return $this;
+
+DataSeries functions -- should be moved to DSV.php
+    public function getSmoothLine()
+        return $this->smoothLine;
+    public function setSmoothLine($smoothLine)
+        return $this;
+
+
+Properties functions --
+    public function __construct()
+     * @return bool
+    public function getObjectState()
+        return $this->objectState;
+    protected function activateObject()
+        return $this;
+    public static function pointsToXml(float $width): string
+        return (string) (int) ($width * self::POINTS_WIDTH_MULTIPLIER);
+    public static function xmlToPoints(string $width): float
+        return ((float) $width) / self::POINTS_WIDTH_MULTIPLIER;
+    public static function angleToXml(float $angle): string
+        return (string) (int) ($angle * self::ANGLE_MULTIPLIER);
+    public static function xmlToAngle(string $angle): float
+        return ((float) $angle) / self::ANGLE_MULTIPLIER;
+    public static function tenthOfPercentToXml(float $value): string
+        return (string) (int) ($value * self::PERCENTAGE_MULTIPLIER);
+    public static function xmlToTenthOfPercent(string $value): float
+        return ((float) $value) / self::PERCENTAGE_MULTIPLIER;
+    protected function setColorProperties(?string $color, $alpha, ?string $colorType): array
+        return [
+    protected function getShadowPresetsMap($presetsOption)
+        return self::PRESETS_OPTIONS[$presetsOption] ?? self::PRESETS_OPTIONS[0];
+    protected function getArrayElementsValue($properties, $elements)
+            return $reference[$elements];
+        return $reference;
+    public function setGlowProperties($size, $colorValue = null, $colorAlpha = null, $colorType = null): void
+     * @return null|array|float|int|string
+    public function getGlowProperty($property)
+        return $retVal;
+     * @return null|int|string
+    public function getGlowColor($propertyName)
+        return $this->glowColor->getColorProperty($propertyName);
+    public function getGlowColorObject(): ChartColor
+        return $this->glowColor;
+     * @return ?float
+    public function getGlowSize()
+        return $this->glowSize;
+    protected function setGlowSize($size)
+        return $this;
+    public function setSoftEdges($size): void
+     * @return string
+    public function getSoftEdgesSize()
+        return $this->softEdges['size'];
+    public function setShadowProperty(string $propertyName, $value): self
+        return $this;
+    public function setShadowProperties($presets, $colorValue = null, $colorType = null, $colorAlpha = null, $blur = null, $angle = null, $distance = null): void
+    protected function setShadowPresetsProperties($presets)
+        return $this;
+    protected function setShadowPropertiesMapValues(array $propertiesMap, &$reference = null)
+        return $this;
+    protected function setShadowBlur($blur)
+        return $this;
+    protected function setShadowAngle($angle)
+        return $this;
+    protected function setShadowDistance($distance)
+        return $this;
+    public function getShadowColorObject(): ChartColor
+        return $this->shadowColor;
+     * @return array|string
+    public function getShadowProperty($elements)
+            return [
+        return $this->getArrayElementsValue($this->shadowProperties, $elements);
+    public function copyLineStyles(self $otherProperties): void
+    public function getLineColor(): ChartColor
+        return $this->lineColor;
+    public function setLineColorProperties($value, $alpha = null, $colorType = ChartColor::EXCEL_COLOR_TYPE_STANDARD): void
+     * @return null|int|string
+    public function getLineColorProperty($propertyName)
+        return $this->lineColor->getColorProperty($propertyName);
+    public function setLineStyleProperties($lineWidth = null, $compoundType = '', $dashType = '', $capType = '', $joinType = '', $headArrowType = '', $headArrowSize = '', $endArrowType = '', $endArrowSize = '', $headArrowWidth = '', $headArrowLength = '', $endArrowWidth = '', $endArrowLength = ''): void
+     * @return string
+    public function getLineStyleProperty($elements)
+        return $this->getArrayElementsValue($this->lineStyleProperties, $elements);
+    protected function getLineStyleArrowSize($arraySelector, $arrayKaySelector)
+        return self::ARROW_SIZES[$arraySelector][$arrayKaySelector] ?? '';
+     * @return string
+    public function getLineStyleArrowParameters($arrowSelector, $propertySelector)
+        return $this->getLineStyleArrowSize($this->lineStyleProperties['arrow'][$arrowSelector]['size'], $propertySelector);
+     * @return string
+    public function getLineStyleArrowWidth($arrow)
+        return $this->getLineStyleProperty(['arrow', $arrow, 'w']);
+     * @return string
+    public function getLineStyleArrowLength($arrow)
+        return $this->getLineStyleProperty(['arrow', $arrow, 'len']);
+
+Writer/Xlsx functions --
+     * @return string XML Output
+    public function writeChart(\PhpOffice\PhpSpreadsheet\Chart\Chart $chart, $calculateCellValues = true)
+        // Return
+        return $objWriter->getData();
+    private function writeTitle(XMLWriter $objWriter, ?Title $title = null): void
+            return;
+    private function writeLegend(XMLWriter $objWriter, ?Legend $legend = null): void
+            return;
+    private function writePlotArea(XMLWriter $objWriter, PlotArea $plotArea, ?Title $xAxisLabel = null, ?Title $yAxisLabel = null, ?Axis $xAxis = null, ?Axis $yAxis = null, ?GridLines $majorGridlines = null, ?GridLines $minorGridlines = null): void
+            return;
+    private function writeDataLabels(XMLWriter $objWriter, ?Layout $chartLayout = null): void
+    private function writeCategoryAxis(XMLWriter $objWriter, ?Title $xAxisLabel, $id1, $id2, $isMultiLevelSeries, Axis $yAxis): void
+    private function writeValueAxis(XMLWriter $objWriter, ?Title $yAxisLabel, $groupType, $id1, $id2, $isMultiLevelSeries, Axis $xAxis, GridLines $majorGridlines, GridLines $minorGridlines): void
+    private function writeSerAxis(XMLWriter $objWriter, string $id2, string $id3): void
+     * @return string[]
+    private static function getChartType(PlotArea $plotArea): array
+        return $chartType;
+    private function writePlotSeriesValuesElement(XMLWriter $objWriter, $val = 3, $fillColor = 'FF9900'): void
+            return;
+    private function writePlotGroup(?DataSeries $plotGroup, string $groupType, XMLWriter $objWriter, &$catIsMultiLevelSeries, &$valIsMultiLevelSeries, &$plotGroupingType): void
+            return;
+    private function writePlotSeriesLabel(?DataSeriesValues $plotSeriesLabel, XMLWriter $objWriter): void
+            return;
+    private function writePlotSeriesValues(?DataSeriesValues $plotSeriesValues, XMLWriter $objWriter, $groupType, $dataType = 'str'): void
+            return;
+    private function writeBubbles(?DataSeriesValues $plotSeriesValues, XMLWriter $objWriter): void
+            return;
+    private function writeLayout(XMLWriter $objWriter, ?Layout $layout = null): void
+    private function writeAlternateContent(XMLWriter $objWriter): void
+    private function writePrintSettings(XMLWriter $objWriter): void
+    private function writeShadow(XMLWriter $objWriter, $xAxis): void
+            return;
+    private function writeGlow(XMLWriter $objWriter, $yAxis): void
+            return;
+    private function writeSoftEdge(XMLWriter $objWriter, $yAxis): void
+            return;
+    private function writeLineStyles(XMLWriter $objWriter, Properties $gridlines, bool $noFill = false): void
+    private function writeNotEmpty(XMLWriter $objWriter, string $name, ?string $value): void
+    private function writeColor(XMLWriter $objWriter, ChartColor $chartColor, bool $solidFill = true): void
+

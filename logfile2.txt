@@ -1,0 +1,114 @@
+
+2026-10-20 19:14:19 
+	Start Pard Details from 2026-01-01 to 2026-10-20 for Richard Garvin
+
+2026-10-21 00:14:40 
+	Start Pard Details from 0006-01-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 00:16:30 
+	Start Pard Details from 2026-01-01 to 2026-10-21 for Richard Garvin
+
+	0.944480 s for Pard details tabulation
+
+2026-10-21 00:16:31 
+	Start Pard Summary from 2026-01-01 to 2026-10-21 for Richard Garvin
+
+	0.631588 for Pard summary tabulation
+
+2026-10-21 00:17:36 
+	Start Team Games from 2026-01-01 to 2026-10-21 for Richard Garvin
+
+	0.840894 s for Team game tabulation
+
+2026-10-21 00:17:37 
+	Start Teammate Summary from 2026-01-01 to 2026-10-21 for Richard Garvin
+
+	0.764897 for Teammate Summary tabulation
+
+2026-10-21 04:02:18 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 04:03:14 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 04:13:05 
+	Start Pard Details from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+	0.077436 s for Pard details tabulation
+
+2026-10-21 04:13:06 
+	Start Pard Summary from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+	0.066180 for Pard summary tabulation
+
+2026-10-21 04:14:08 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 06:44:35 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 06:46:13 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 06:58:05 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 06:59:17 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 07:00:53 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-21 16:26:02 
+	Start Team Games from 2026-10-01 to 2026-10-21 for Richard Garvin
+
+2026-10-22 01:10:57 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 01:11:31 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 01:11:50 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 01:12:32 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 01:17:14 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 01:17:38 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 01:18:07 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 05:09:04 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+2026-10-22 05:22:15 
+	Start Team Games from 2026-01-01 to 2026-10-22 for Richard Garvin
+
+	0.951507 s for Team game tabulation
+
+2026-10-22 05:22:16 
+	Start Teammate Summary from 2026-01-01 to 2026-10-22 for Richard Garvin
+
+	0.781550 for Teammate Summary tabulation
+
+2026-10-22 05:22:55 
+	Start Team Games from 2026-10-01 to 2026-10-22 for Richard Garvin
+
+	1792646575.247352 for Teammate Summary tabulation
+
+2026-10-22 18:08:43 
+	Start Pard Details from 2026-10-21 to 2026-10-22 for Richard Garvin
+
+2026-10-22 18:42:53 
+	Start Pard Details from 2026-10-21 to 2026-10-22 for Richard Garvin
+
+2026-10-22 18:43:05 
+	Start Team Games from 2026-10-21 to 2026-10-22 for Richard Garvin
+
+2026-10-22 18:44:02 
+	Start Team Games from 2026-10-21 to 2026-10-22 for Richard Garvin

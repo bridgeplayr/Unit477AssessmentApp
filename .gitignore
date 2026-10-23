@@ -1,0 +1,25 @@
+# Editor backup files
+*~
+*.bak
+*.tmp
+
+# Vim / Emacs / VSCode swap files
+*.swp
+*.swo
+*.swx
+.#*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# PHP-specific
+/vendor/
+
+# Spreadsheet output
+*.xlsx
+*.xls
+
+# Old versions
+*OLD*
+/spreadsheets

@@ -1,8 +1,8 @@
 <?php
-define('APP_VERSION', '2026.10.16');
 
 // namespace PhpOffice\PhpSpreadsheet\Chart;
-require_once('vendor/autoload.php');
+// require_once('vendor/autoload.php');
+require_once __DIR__ . '/vendor/phpspreadsheetMYversion/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -458,7 +458,7 @@ SELECT
     SUM(partner) AS partner_freq,
     SUM(teammate) AS teammate_freq,
     SUM(indy) AS indy_freq,
-	pardName AS name,
+		pardName AS name,
     pardnum
 FROM all_partners
 GROUP BY pardnum 
@@ -1761,6 +1761,8 @@ team_pivoted AS (
 function get_teamgames($conn, $pnum, $gmqualifier) {
 	global $teamgame_sql_body;  
 
+	// error_log("get_teamgames() START");
+
 	$teamgame_sql_hdr =
 "
 WITH
@@ -1818,6 +1820,8 @@ SELECT
 FROM team_pivoted
 ORDER BY GameId, club;
 ";
+
+	
 	$teamgames_sql = $teamgame_sql_hdr . $teamgame_sql_body . $teamgame_sql_select ;
 	$result = mysqli_query($conn, $teamgames_sql); 
 
@@ -1831,6 +1835,10 @@ ORDER BY GameId, club;
   while ($row = mysqli_fetch_assoc($result)) {
     $rows[] = $row;
   }
+
+	if (empty($rows) || (count($rows) === 1 && empty(array_filter($rows[0])))) {
+		return [];
+	}
 
 	return $rows;
 
@@ -1955,486 +1963,491 @@ function make_spreadsheet($conn, $pnum, $gmqualifier) {
 	// get pard's pair game details
 	$details = get_spreadsheet_data ($conn, $pnum, $gmqualifier) ; 
 
-	$games   = [];
-	// get HCP for player + pard
-	$games = get_HCP_by_board($conn, $pnum, $gmqualifier);
+	if (count($details)== 0) {
+		return ''; // controller knows no data for ss.
+	} else { // build the spreadsheet
 
-	$gm_cnt = 1; // header row
+		$games   = [];
+		// get HCP for player + pard
+		$games = get_HCP_by_board($conn, $pnum, $gmqualifier);
 
-	// Fill SS sheet 'data'
-	foreach ($details as $r) {
-		$gm_cnt++; // also row count; row 1 is the header row which is embedded in the xl template
+		$gm_cnt = 1; // header row
 
-		$SSrow=array(); # start with an empty row
-		
-    # col A is the XL function DATEVALUE(cell)
-    $datevaluestr = '=DATEVALUE(B' . ($gm_cnt) . ')';
-    array_push ($SSrow, $datevaluestr); # first col is Excel DATEVALUE, followed by the SScols
+		// Fill SS sheet 'data'
+		foreach ($details as $r) {
+			$gm_cnt++; // also row count; row 1 is the header row which is embedded in the xl template
 
-		$gmid = $r['GameId'] ;
-		$yy =   substr($gmid, 0, 2) ;
-		$mm =   substr($gmid, 2, 2) ;
-		$dd =   substr($gmid, 4, 2) ;
-		$MAE=   substr($gmid, 6, 1);
-		$SSDate = $mm . "/" . $dd . "/" . "20" . $yy; # SS Date
-    array_push ($SSrow, $SSDate );
-    array_push ($SSrow, $gmid );
-		$club = trim($r['club']) ;
-    array_push ($SSrow, $club );
-		array_push ($SSrow, $r['pardName']) ;
-		array_push ($SSrow, $r['pardnum']) ;
-		array_push ($SSrow, $r['games_together']) ;
-		array_push ($SSrow, $r['gametype']) ;
-		array_push ($SSrow, $r['rating']) ;
-		array_push ($SSrow, $r['movement']) ;
-		array_push ($SSrow, $r['ScrMethod']) ;
-		array_push ($SSrow, $r['strat']) ;
-		array_push ($SSrow, $r['Pct']) ;
-		# SS Award; suppress clr2 award if absent
-		$AwardStr = $r['award1'] . " " .$r['color1'] . " " .
-							 ($r['award2'] > 0 ? " + ".$r['award2'] : "")." " .($r['color2'] ?? "") ;
-		array_push ($SSrow, $AwardStr) ;
-		array_push ($SSrow, $r['reason']) ;
-		array_push ($SSrow, $r['boards_played']) ;
-		array_push ($SSrow, $r['hands_I_declared']) ;
-		array_push ($SSrow, $r['hands_pard_declared']) ;
-		array_push ($SSrow, $r['hands_defended']) ;
-		array_push ($SSrow, $r['passout_count']) ;
+			$SSrow=array(); # start with an empty row
+			
+			# col A is the XL function DATEVALUE(cell)
+			$datevaluestr = '=DATEVALUE(B' . ($gm_cnt) . ')';
+			array_push ($SSrow, $datevaluestr); # first col is Excel DATEVALUE, followed by the SScols
 
-		# "%Declaring" header in SS
-		// $SScol[14] = $r['my_dclr_frq'] + $r['pard_dclr_frq']; # "How often we declare"
-		$DeclFrq = 100*($r['hands_I_declared'] + $r['hands_pard_declared']) / $r['boards_played']; # "How often we declare"
-		array_push ($SSrow, $DeclFrq);  
-		array_push ($SSrow, $r['my_dclr_frq']) ;
-		array_push ($SSrow, $r['my_dclr_scr']) ;
-		array_push ($SSrow, $r['pard_dclr_frq']) ;
-		array_push ($SSrow, $r['pard_dclr_scr']) ;
-		array_push ($SSrow, $r['def_frq']) ;
-		array_push ($SSrow, $r['def_scr']) ;
-		array_push ($SSrow, $r['PO_frq']) ;
-		array_push ($SSrow, $r['PO_scr']) ;
-		array_push ($SSrow, $r['ETF_me']) ;
-		array_push ($SSrow, $r['ETF_pard']) ;
-		array_push ($SSrow, $r['ETF_defense']) ;
-		array_push ($SSrow, $r['OLE_me']) ;
-		array_push ($SSrow, $r['OLE_pard']) ;
-		array_push ($SSrow, $r['OLE_opp']) ;
+			$gmid = $r['GameId'] ;
+			$yy =   substr($gmid, 0, 2) ;
+			$mm =   substr($gmid, 2, 2) ;
+			$dd =   substr($gmid, 4, 2) ;
+			$MAE=   substr($gmid, 6, 1);
+			$SSDate = $mm . "/" . $dd . "/" . "20" . $yy; # SS Date
+			array_push ($SSrow, $SSDate );
+			array_push ($SSrow, $gmid );
+			$club = trim($r['club']) ;
+			array_push ($SSrow, $club );
+			array_push ($SSrow, $r['pardName']) ;
+			array_push ($SSrow, $r['pardnum']) ;
+			array_push ($SSrow, $r['games_together']) ;
+			array_push ($SSrow, $r['gametype']) ;
+			array_push ($SSrow, $r['rating']) ;
+			array_push ($SSrow, $r['movement']) ;
+			array_push ($SSrow, $r['ScrMethod']) ;
+			array_push ($SSrow, $r['strat']) ;
+			array_push ($SSrow, $r['Pct']) ;
+			# SS Award; suppress clr2 award if absent
+			$AwardStr = $r['award1'] . " " .$r['color1'] . " " .
+								 ($r['award2'] > 0 ? " + ".$r['award2'] : "")." " .($r['color2'] ?? "") ;
+			array_push ($SSrow, $AwardStr) ;
+			array_push ($SSrow, $r['reason']) ;
+			array_push ($SSrow, $r['boards_played']) ;
+			array_push ($SSrow, $r['hands_I_declared']) ;
+			array_push ($SSrow, $r['hands_pard_declared']) ;
+			array_push ($SSrow, $r['hands_defended']) ;
+			array_push ($SSrow, $r['passout_count']) ;
 
-		// convert frac Ranking 2.5 => "2/3"
-		// convert null to "-" 
-		$ovRnkA=  fractionalRank($r['ovRnkA']) ;
-		$ovRnkB=  fractionalRank($r['ovRnkB']) ;
-		$ovRnkC=  fractionalRank($r['ovRnkC']) ;
-		$ovRnk_string  = $ovRnkA  . " " . dash($ovRnkB)  . " " .dash($ovRnkC)  ;
+			# "%Declaring" header in SS
+			// $SScol[14] = $r['my_dclr_frq'] + $r['pard_dclr_frq']; # "How often we declare"
+			$DeclFrq = 100*($r['hands_I_declared'] + $r['hands_pard_declared']) / $r['boards_played']; # "How often we declare"
+			array_push ($SSrow, $DeclFrq);  
+			array_push ($SSrow, $r['my_dclr_frq']) ;
+			array_push ($SSrow, $r['my_dclr_scr']) ;
+			array_push ($SSrow, $r['pard_dclr_frq']) ;
+			array_push ($SSrow, $r['pard_dclr_scr']) ;
+			array_push ($SSrow, $r['def_frq']) ;
+			array_push ($SSrow, $r['def_scr']) ;
+			array_push ($SSrow, $r['PO_frq']) ;
+			array_push ($SSrow, $r['PO_scr']) ;
+			array_push ($SSrow, $r['ETF_me']) ;
+			array_push ($SSrow, $r['ETF_pard']) ;
+			array_push ($SSrow, $r['ETF_defense']) ;
+			array_push ($SSrow, $r['OLE_me']) ;
+			array_push ($SSrow, $r['OLE_pard']) ;
+			array_push ($SSrow, $r['OLE_opp']) ;
 
-		$secRnkA= fractionalRank($r['secRnkA']) ;
-		$secRnkB= fractionalRank($r['secRnkB']) ;
-		$secRnkC= fractionalRank($r['secRnkC']) ;
-		$secRnk_string = $secRnkA . " " . dash($secRnkB) . " " .dash($secRnkC)  ;
+			// convert frac Ranking 2.5 => "2/3"
+			// convert null to "-" 
+			$ovRnkA=  fractionalRank($r['ovRnkA']) ;
+			$ovRnkB=  fractionalRank($r['ovRnkB']) ;
+			$ovRnkC=  fractionalRank($r['ovRnkC']) ;
+			$ovRnk_string  = $ovRnkA  . " " . dash($ovRnkB)  . " " .dash($ovRnkC)  ;
 
-		array_push ($SSrow, $ovRnk_string) ;  
-		array_push ($SSrow, $secRnk_string) ;  
-							
-		$ovRtg_string = $r['ovRtgA'] . " of " . $r['pop_ov_A'] . " " ; // strat A ov rating always present
-		$ovRtg_string .= (dash($r['ovRtgB']) !== "-") ?  $r['ovRtgB'] . " of " . $r['pop_ov_B'] . " " : " -";
-		$ovRtg_string .= (dash($r['ovRtgC']) !== "-") ?  $r['ovRtgC'] . " of " . $r['pop_ov_C'] : " -";
+			$secRnkA= fractionalRank($r['secRnkA']) ;
+			$secRnkB= fractionalRank($r['secRnkB']) ;
+			$secRnkC= fractionalRank($r['secRnkC']) ;
+			$secRnk_string = $secRnkA . " " . dash($secRnkB) . " " .dash($secRnkC)  ;
 
-		$secRtg_string = $r['secRtgA'] . " of " . $r['pop_sec_A'] . " " ; // strat A sec rating always present 
-		$secRtg_string .= (dash($r['secRtgB']) !== "-") ?  $r['secRtgB'] . " of " . $r['pop_sec_B'] . " " : " -";
-		$secRtg_string .= (dash($r['secRtgC']) !== "-") ?  $r['secRtgC'] . " of " . $r['pop_sec_C'] : " -";
+			array_push ($SSrow, $ovRnk_string) ;  
+			array_push ($SSrow, $secRnk_string) ;  
+								
+			$ovRtg_string = $r['ovRtgA'] . " of " . $r['pop_ov_A'] . " " ; // strat A ov rating always present
+			$ovRtg_string .= (dash($r['ovRtgB']) !== "-") ?  $r['ovRtgB'] . " of " . $r['pop_ov_B'] . " " : " -";
+			$ovRtg_string .= (dash($r['ovRtgC']) !== "-") ?  $r['ovRtgC'] . " of " . $r['pop_ov_C'] : " -";
 
-		array_push ($SSrow, $ovRtg_string) ; 
-		array_push ($SSrow, $secRtg_string) ; 
+			$secRtg_string = $r['secRtgA'] . " of " . $r['pop_sec_A'] . " " ; // strat A sec rating always present 
+			$secRtg_string .= (dash($r['secRtgB']) !== "-") ?  $r['secRtgB'] . " of " . $r['pop_sec_B'] . " " : " -";
+			$secRtg_string .= (dash($r['secRtgC']) !== "-") ?  $r['secRtgC'] . " of " . $r['pop_sec_C'] : " -";
 
-		// aveHCP from $games struct
-		// skip if this game has no deals for HCP calc
-		if (isset($games[$gmid])) {
-			$boards    = $games[$gmid]['boards'];
+			array_push ($SSrow, $ovRtg_string) ; 
+			array_push ($SSrow, $secRtg_string) ; 
 
-			$mytotalHCP  	 = array_sum(array_column($games[$gmid]['boards'], 'myhcp'));
-			$pardtotalHCP  = array_sum(array_column($games[$gmid]['boards'], 'pardhcp'));
-			$bdsPlayed 		 = count($boards);
-			$myavgHCP 	 	 = $mytotalHCP / $bdsPlayed;
-			$pardavgHCP 	 = $pardtotalHCP / $bdsPlayed;
-			// DO NOT USE sprintf to insert values into Excel - Excel considers it text
-			// $avgHCP 	 = sprintf("%8.2f",$totalHCP / $bdsPlayed);
-			array_push ($SSrow, $myavgHCP) ; 
-			array_push ($SSrow, $pardavgHCP) ; 
-		} else {
-			array_push ($SSrow, null) ; 
-			array_push ($SSrow, null) ; 
+			// aveHCP from $games struct
+			// skip if this game has no deals for HCP calc
+			if (isset($games[$gmid])) {
+				$boards    = $games[$gmid]['boards'];
+
+				$mytotalHCP  	 = array_sum(array_column($games[$gmid]['boards'], 'myhcp'));
+				$pardtotalHCP  = array_sum(array_column($games[$gmid]['boards'], 'pardhcp'));
+				$bdsPlayed 		 = count($boards);
+				$myavgHCP 	 	 = $mytotalHCP / $bdsPlayed;
+				$pardavgHCP 	 = $pardtotalHCP / $bdsPlayed;
+				// DO NOT USE sprintf to insert values into Excel - Excel considers it text
+				// $avgHCP 	 = sprintf("%8.2f",$totalHCP / $bdsPlayed);
+				array_push ($SSrow, $myavgHCP) ; 
+				array_push ($SSrow, $pardavgHCP) ; 
+			} else {
+				array_push ($SSrow, null) ; 
+				array_push ($SSrow, null) ; 
+			}
+				#	3 - write	$SSrow to dataArray
+			array_push($dataArray, $SSrow); # add this row to the 2D array of rows
 		}
-			#	3 - write	$SSrow to dataArray
-    array_push($dataArray, $SSrow); # add this row to the 2D array of rows
-	}
 
-	# open the XLSS template
-	$headerOnly   = "headerOnly.xlsx" ;
-	$reader       = IOFactory::createReader('Xlsx');
-	$reader->setIncludeCharts(TRUE);
-	$Wrkbk  = $reader->load($headerOnly);
+		# open the XLSS template
+		$headerOnly   = "headerOnly.xlsx" ;
+		$reader       = IOFactory::createReader('Xlsx');
+		$reader->setIncludeCharts(TRUE);
+		$Wrkbk  = $reader->load($headerOnly);
 
-	# insert the data into sheet 'Data'
-	$Wrkbk->getSheetByName('Data')
-			->fromArray(  
-			$dataArray,  // The data to set
-			"9999",      // Array values with this value will not be set
-			'A2'         // Top left coordinate of the worksheet range where
-									 //    we want to set these values (default is A1)
-	);  
+		# insert the data into sheet 'Data'
+		$Wrkbk->getSheetByName('Data')
+				->fromArray(  
+				$dataArray,  // The data to set
+				"9999",      // Array values with this value will not be set
+				'A2'         // Top left coordinate of the worksheet range where
+										 //    we want to set these values (default is A1)
+		);  
 
-	# autoformat the columns in 'Data' sheet
-	$Datasheet = $Wrkbk->getSheetByName('Data');
-	foreach (range('A', 'AI') as $col) {
-		$Datasheet->getColumnDimension($col)->setAutoSize(true);  
-	}
+		# autoformat the columns in 'Data' sheet
+		$Datasheet = $Wrkbk->getSheetByName('Data');
+		foreach (range('A', 'AI') as $col) {
+			$Datasheet->getColumnDimension($col)->setAutoSize(true);  
+		}
 
-	$dateMinMax = playDateRange ($gm_cnt, $Wrkbk, $details) ; // return array
-	// measure the time span of games played.  change chart tick marks to match
-	$nQtrs = sprintf("%3.2f",  (($dateMinMax['max'] - $dateMinMax['min'])/30.5)/4 ) ;
-	// echo "<br>play spans $nQtrs quarters<br>";
+		$dateMinMax = playDateRange ($gm_cnt, $Wrkbk, $details) ; // return array
+		// measure the time span of games played.  change chart tick marks to match
+		$nQtrs = sprintf("%3.2f",  (($dateMinMax['max'] - $dateMinMax['min'])/30.5)/4 ) ;
+		// echo "<br>play spans $nQtrs quarters<br>";
 
-//---------------------------- begin Chart creation
+	//---------------------------- begin Chart creation
 
-# create the 'Charts' worksheet
-	$Wrkbk->createSheet();
-	$Chart_sheet = $Wrkbk->getSheet(1);
-	$Chart_sheet->setTitle("Charts");
+	# create the 'Charts' worksheet
+		$Wrkbk->createSheet();
+		$Chart_sheet = $Wrkbk->getSheet(1);
+		$Chart_sheet->setTitle("Charts");
 
-  $Chart_sheet = $Wrkbk->getSheetByName('Charts');
+		$Chart_sheet = $Wrkbk->getSheetByName('Charts');
 
-	// column definitions - because I keep moving and adding columns
-	$DeclScrCol = 'W';
-	$PardScrCol = 'Y';
-	$DefScrCol  = 'AA';
-	$PerCentDeclrngCol = 'U';
-	$GameScrCol = 'M';
-	$AveHCPCol  = 'AN';
+		// column definitions - because I keep moving and adding columns
+		$DeclScrCol = 'W';
+		$PardScrCol = 'Y';
+		$DefScrCol  = 'AA';
+		$PerCentDeclrngCol = 'U';
+		$GameScrCol = 'M';
+		$AveHCPCol  = 'AN';
 
-// --------------- Add the 5 Trend Charts -----------------------------------
-// --------------- Add the 6 Trend Charts -----------------------------------
-//
-  #  create_Trend_chart(
-  #    $column, // column containing data
-  #    $nrows, 
-  #    $metric, // name of data
-  #    $marker, 
-  #    $marker_size, 
-  #    $fill_color array
-  #    $border_color array
-  #    $yLabel, // y-axis label, like metric
-  #    $topleftcell, 
-  #    $bottomrightcell, 
-  #    $trendLine['width','color','type','order','period','dispRSqr','dispEq'], 
-	#    date range info
-	#    workbook
-  #    ) 
+	// --------------- Add the 5 Trend Charts -----------------------------------
+	// --------------- Add the 6 Trend Charts -----------------------------------
+	//
+		#  create_Trend_chart(
+		#    $column, // column containing data
+		#    $nrows, 
+		#    $metric, // name of data
+		#    $marker, 
+		#    $marker_size, 
+		#    $fill_color array
+		#    $border_color array
+		#    $yLabel, // y-axis label, like metric
+		#    $topleftcell, 
+		#    $bottomrightcell, 
+		#    $trendLine['width','color','type','order','period','dispRSqr','dispEq'], 
+		#    date range info
+		#    workbook
+		#    ) 
 
-    // use this one for each single dataseries values
-    $trendLines = [ 
-      new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, true, false),
-    ] ;
-    // $fill = setClrProps ('tx1', null, 'schemeClr'); // black
+			// use this one for each single dataseries values
+			$trendLines = [ 
+				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, true, false),
+			] ;
+			// $fill = setClrProps ('tx1', null, 'schemeClr'); // black
 
-    # DeclScr 
-    $fill   = setClrProps ('0070C0', null, 'srgbClr'); // blue
-    $border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-    $trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-    $chrt =  create_Trend_chart
-      ($GameScrCol, $gm_cnt, 'Declarer Score', 'diamond', 7, $fill, $border, 'Your Declarer Score', 'A1', 'S24', $trendLine, $dateMinMax, $Wrkbk); 
-  
-    $Chart_sheet->addChart($chrt);
+			# DeclScr 
+			$fill   = setClrProps ('0070C0', null, 'srgbClr'); // blue
+			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+			$chrt =  create_Trend_chart
+				($GameScrCol, $gm_cnt, 'Declarer Score', 'diamond', 7, $fill, $border, 'Your Declarer Score', 'A1', 'S24', $trendLine, $dateMinMax, $Wrkbk); 
+		
+			$Chart_sheet->addChart($chrt);
 
-    # PardScr
-    $fill   = setClrProps ('FF0000', null, 'srgbClr'); // red
-    $border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-    $trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-    $chrt =  create_Trend_chart
-      ($PardScrCol, $gm_cnt, 'Pard Score', 'square', 5, $fill, $border, 'Partners Declarer Score', 'A25', 'S48', $trendLine, $dateMinMax, $Wrkbk);
-    $Chart_sheet->addChart($chrt);
-  
-    # DefScr 
-    $fill   = setClrProps ('00B050', null, 'srgbClr'); // green
-    $border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-    $trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-    $chrt =  create_Trend_chart
-      ($DefScrCol, $gm_cnt, 'Defense Score', 'triangle', 7, $fill, $border, 'Score when Defending', 'A49', 'S72', $trendLine, $dateMinMax, $Wrkbk); 
-    $Chart_sheet->addChart($chrt);
-  
-    # GameScr 
-    $fill   = setClrProps ('000000', null, 'srgbClr'); // black
-    $border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-    $trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-    $chrt =  create_Trend_chart
-      ($GameScrCol, $gm_cnt, 'Game Score', 'circle', 5, $fill, $border, 'Game Score', 'A73', 'S96', $trendLine, $dateMinMax, $Wrkbk);
-    $Chart_sheet->addChart($chrt);
+			# PardScr
+			$fill   = setClrProps ('FF0000', null, 'srgbClr'); // red
+			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+			$chrt =  create_Trend_chart
+				($PardScrCol, $gm_cnt, 'Pard Score', 'square', 5, $fill, $border, 'Partners Declarer Score', 'A25', 'S48', $trendLine, $dateMinMax, $Wrkbk);
+			$Chart_sheet->addChart($chrt);
+		
+			# DefScr 
+			$fill   = setClrProps ('00B050', null, 'srgbClr'); // green
+			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+			$chrt =  create_Trend_chart
+				($DefScrCol, $gm_cnt, 'Defense Score', 'triangle', 7, $fill, $border, 'Score when Defending', 'A49', 'S72', $trendLine, $dateMinMax, $Wrkbk); 
+			$Chart_sheet->addChart($chrt);
+		
+			# GameScr 
+			$fill   = setClrProps ('000000', null, 'srgbClr'); // black
+			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+			$chrt =  create_Trend_chart
+				($GameScrCol, $gm_cnt, 'Game Score', 'circle', 5, $fill, $border, 'Game Score', 'A73', 'S96', $trendLine, $dateMinMax, $Wrkbk);
+			$Chart_sheet->addChart($chrt);
 
-    # %Declring
-    $fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-    $border = setClrProps ('7030A0', null, 'srgbClr'); // purple
-    $trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
-    $chrt =  create_Trend_chart
-      ($PerCentDeclrngCol, $gm_cnt, 'How often we Declare', 'x', 5, $fill, $border, '%Declaring', 'A97', 'S120', $trendLine, $dateMinMax, $Wrkbk);
-    $Chart_sheet->addChart($chrt);
+			# %Declring
+			$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+			$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
+			$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
+			$chrt =  create_Trend_chart
+				($PerCentDeclrngCol, $gm_cnt, 'How often we Declare', 'x', 5, $fill, $border, '%Declaring', 'A97', 'S120', $trendLine, $dateMinMax, $Wrkbk);
+			$Chart_sheet->addChart($chrt);
 
 
-// --------------- Correlation Chart for Game Score% vs. each of the previous 4 score paramaters -----------------------------------
+		// --------------- Correlation Chart for Game Score% vs. each of the previous 4 score paramaters -----------------------------------
 
-// Set the X-Axis Labels  - DeclScr, PardScr, DefScr, %Declaring
-    $dataSeriesLabels = 
-    [
-       new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DeclScrCol . '$1', null, 1), // DeclScr
-       new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PardScrCol . '$1', null, 1), // PardScr
-       new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DefScrCol . '$1', null, 1), // DefScr
-       new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PerCentDeclrngCol . '$1', null, 1), // %Declring
-    ];
+		// Set the X-Axis Labels  - DeclScr, PardScr, DefScr, %Declaring
+			$dataSeriesLabels = 
+			[
+				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DeclScrCol . '$1', null, 1), // DeclScr
+				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PardScrCol . '$1', null, 1), // PardScr
+				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DefScrCol . '$1', null, 1), // DefScr
+				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PerCentDeclrngCol . '$1', null, 1), // %Declring
+			];
 
-    $xAxisTickValues = 
-    [
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DeclScrCol . '$2:$'. $DeclScrCol . '$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PardScrCol . '$2:$'. $PardScrCol . '$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DefScrCol . '$2:$'. $DefScrCol . '$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PerCentDeclrngCol . '$2:$'. $PerCentDeclrngCol . '$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-    ];
+			$xAxisTickValues = 
+			[
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DeclScrCol . '$2:$'. $DeclScrCol . '$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PardScrCol . '$2:$'. $PardScrCol . '$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DefScrCol . '$2:$'. $DefScrCol . '$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PerCentDeclrngCol . '$2:$'. $PerCentDeclrngCol . '$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+			];
 
-// Set the same Y-Axis for each of the above
-    $dataSeriesValues = 
-    [
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'diamond', null, 7),
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'square', null, 5),
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'triangle', null, 7),
-      new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-       Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'x', null, 5),
-    ];
-    $DeclrtrendLines = [ 
-      new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-    ] ;
-    $PardtrendLines = [ 
-      new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-    ] ;
-    $DeftrendLines = [ 
-      new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-    ] ;
-    $PerCentDeclngtrendLines = [ 
-      new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-    ] ;
-  
-    $cell = $DeclScrCol .'1'; // cell containing 'DeclScr'
-    $DeclrTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-    $dataSeriesValues[0]->setTrendLines($DeclrtrendLines);
-  
-    $cell = $PardScrCol .'1'; // cell containing 'PardScr'
-    $PardTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-    $dataSeriesValues[1]->setTrendLines($PardtrendLines);
-  
-    $cell = $DefScrCol  .'1'; // cell containing 'DefScr'
-    $DefTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-    $dataSeriesValues[2]->setTrendLines($DeftrendLines);
-  
-    $cell = $PerCentDeclrngCol .'1'; // cell containing '% Declaring'
-    $PerCentTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-    $dataSeriesValues[3]->setTrendLines($PerCentDeclngtrendLines);
+		// Set the same Y-Axis for each of the above
+			$dataSeriesValues = 
+			[
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'diamond', null, 7),
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'square', null, 5),
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'triangle', null, 7),
+				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'x', null, 5),
+			];
+			$DeclrtrendLines = [ 
+				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+			] ;
+			$PardtrendLines = [ 
+				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+			] ;
+			$DeftrendLines = [ 
+				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+			] ;
+			$PerCentDeclngtrendLines = [ 
+				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+			] ;
+		
+			$cell = $DeclScrCol .'1'; // cell containing 'DeclScr'
+			$DeclrTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+			$dataSeriesValues[0]->setTrendLines($DeclrtrendLines);
+		
+			$cell = $PardScrCol .'1'; // cell containing 'PardScr'
+			$PardTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+			$dataSeriesValues[1]->setTrendLines($PardtrendLines);
+		
+			$cell = $DefScrCol  .'1'; // cell containing 'DefScr'
+			$DefTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+			$dataSeriesValues[2]->setTrendLines($DeftrendLines);
+		
+			$cell = $PerCentDeclrngCol .'1'; // cell containing '% Declaring'
+			$PerCentTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+			$dataSeriesValues[3]->setTrendLines($PerCentDeclngtrendLines);
 
-    // Declr Score - blue 0070C0
-    $dataSeriesValues[0]->getMarkerFillColor()->setColorProperties('0070C0', null, 'srgbClr');
-    $dataSeriesValues[0]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-    $dataSeriesValues[0]
-        ->setScatterlines(false) // disable connecting lines
-        ->setLineWidth(0.5)
-        ->getTrendLines(0)
-        ->setTrendLineProperties('linear', null, null, true, false, $DeclrTrendLineLabel) 
-        ->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-    $dataSeriesValues[0]->getTrendLines(0)->getLineColor()->setColorProperties ('0070C0', null, 'srgbClr');
+			// Declr Score - blue 0070C0
+			$dataSeriesValues[0]->getMarkerFillColor()->setColorProperties('0070C0', null, 'srgbClr');
+			$dataSeriesValues[0]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+			$dataSeriesValues[0]
+					->setScatterlines(false) // disable connecting lines
+					->setLineWidth(0.5)
+					->getTrendLines(0)
+					->setTrendLineProperties('linear', null, null, true, false, $DeclrTrendLineLabel) 
+					->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+			$dataSeriesValues[0]->getTrendLines(0)->getLineColor()->setColorProperties ('0070C0', null, 'srgbClr');
 
-    // Pard Score - red FF0000
-    $dataSeriesValues[1]->getMarkerFillColor()->setColorProperties('FF0000', null, 'srgbClr');
-    $dataSeriesValues[1]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-    $dataSeriesValues[1]
-        ->setScatterlines(false)
-        ->setLineWidth(0.5)
-        ->getTrendLines(0)
-        ->setTrendLineProperties('linear', null, null, true, false, $PardTrendLineLabel) 
-        ->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-    $dataSeriesValues[1]->getTrendLines(0)->getLineColor()->setColorProperties ('FF0000', null, 'srgbClr');
+			// Pard Score - red FF0000
+			$dataSeriesValues[1]->getMarkerFillColor()->setColorProperties('FF0000', null, 'srgbClr');
+			$dataSeriesValues[1]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+			$dataSeriesValues[1]
+					->setScatterlines(false)
+					->setLineWidth(0.5)
+					->getTrendLines(0)
+					->setTrendLineProperties('linear', null, null, true, false, $PardTrendLineLabel) 
+					->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+			$dataSeriesValues[1]->getTrendLines(0)->getLineColor()->setColorProperties ('FF0000', null, 'srgbClr');
 
-  // Def Score - green 00B050
-    $dataSeriesValues[2]->getMarkerFillColor()->setColorProperties('00B050', null, 'srgbClr');
-    $dataSeriesValues[2]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-    $dataSeriesValues[2]
-        ->setScatterlines(false)
-        ->setLineWidth(0.5)
-        ->getTrendLines(0)
-        ->setTrendLineProperties('linear', null, null, true, false, $DefTrendLineLabel) 
-        ->setLineStyleProperties (1.50, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-    $dataSeriesValues[2]->getTrendLines(0)->getLineColor()->setColorProperties ('00B050', null, 'srgbClr');
+		// Def Score - green 00B050
+			$dataSeriesValues[2]->getMarkerFillColor()->setColorProperties('00B050', null, 'srgbClr');
+			$dataSeriesValues[2]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+			$dataSeriesValues[2]
+					->setScatterlines(false)
+					->setLineWidth(0.5)
+					->getTrendLines(0)
+					->setTrendLineProperties('linear', null, null, true, false, $DefTrendLineLabel) 
+					->setLineStyleProperties (1.50, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+			$dataSeriesValues[2]->getTrendLines(0)->getLineColor()->setColorProperties ('00B050', null, 'srgbClr');
 
-  // %Declaring - purple 7030A0
-    $dataSeriesValues[3]->getMarkerFillColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-    $dataSeriesValues[3]->getMarkerBorderColor()->setColorProperties('7030A0', null, 'srgbClr');
-    $dataSeriesValues[3]
-        ->setScatterlines(false)
-        ->setLineWidth(0.5)
-        ->getTrendLines(0)
-        ->setTrendLineProperties('linear', null, null, true, false, $PerCentTrendLineLabel) 
-        ->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-    $dataSeriesValues[3]->getTrendLines(0)->getLineColor()->setColorProperties ('7030A0', null, 'srgbClr');
+		// %Declaring - purple 7030A0
+			$dataSeriesValues[3]->getMarkerFillColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+			$dataSeriesValues[3]->getMarkerBorderColor()->setColorProperties('7030A0', null, 'srgbClr');
+			$dataSeriesValues[3]
+					->setScatterlines(false)
+					->setLineWidth(0.5)
+					->getTrendLines(0)
+					->setTrendLineProperties('linear', null, null, true, false, $PerCentTrendLineLabel) 
+					->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+			$dataSeriesValues[3]->getTrendLines(0)->getLineColor()->setColorProperties ('7030A0', null, 'srgbClr');
 
-// Build the dataseries
-    $series = new DataSeries (
-      DataSeries::TYPE_SCATTERCHART, // plotType
-      null, // plotGrouping (Scatter charts don't have any grouping)
-      range(0, count($dataSeriesValues) - 1), // plotOrder
-      $dataSeriesLabels, // plotLabel
-      $xAxisTickValues, // plotCategory
-      $dataSeriesValues, // plotValues
-      null, // plotDirection
-      false, // smooth line
-      DataSeries::STYLE_SMOOTHMARKER  // plotStyle
-    );
+		// Build the dataseries
+			$series = new DataSeries (
+				DataSeries::TYPE_SCATTERCHART, // plotType
+				null, // plotGrouping (Scatter charts don't have any grouping)
+				range(0, count($dataSeriesValues) - 1), // plotOrder
+				$dataSeriesLabels, // plotLabel
+				$xAxisTickValues, // plotCategory
+				$dataSeriesValues, // plotValues
+				null, // plotDirection
+				false, // smooth line
+				DataSeries::STYLE_SMOOTHMARKER  // plotStyle
+			);
 
-// Set the series in the plot area
-    $plotArea = new PlotArea(null, [$series]);
+		// Set the series in the plot area
+			$plotArea = new PlotArea(null, [$series]);
 
-    $pos1 = 0; // pos = 0% (extreme low side or lower left corner)
-    $brightness1 = 0; // 0%
-    $gsColor1  = new ChartColor;
-    $gsColor1->setColorProperties('FF0000', 75, 'srgbClr', $brightness1); // red
-    $gradientStop1 = array('pos' => $pos1, 'gsColor' => $gsColor1);
+			$pos1 = 0; // pos = 0% (extreme low side or lower left corner)
+			$brightness1 = 0; // 0%
+			$gsColor1  = new ChartColor;
+			$gsColor1->setColorProperties('FF0000', 75, 'srgbClr', $brightness1); // red
+			$gradientStop1 = array('pos' => $pos1, 'gsColor' => $gsColor1);
 
-    $pos2 = 0.5; // pos = 50% (middle)
-    $brightness2 = 0.5; // 50%
-    $gsColor2  = new ChartColor;
-    $gsColor2->setColorProperties('FFFF00', 50, 'srgbClr', $brightness2); // yellow
-    $gradientStop2 = array('pos' => $pos2, 'gsColor' => $gsColor2);
+			$pos2 = 0.5; // pos = 50% (middle)
+			$brightness2 = 0.5; // 50%
+			$gsColor2  = new ChartColor;
+			$gsColor2->setColorProperties('FFFF00', 50, 'srgbClr', $brightness2); // yellow
+			$gradientStop2 = array('pos' => $pos2, 'gsColor' => $gsColor2);
 
-    $pos3 = 1.0; // pos = 100% (extreme high side or upper right corner)
-    $brightness3 = 0.5; // 50%
-    $gsColor3  = new ChartColor;
-    $gsColor3->setColorProperties('00B050', 50, 'srgbClr', $brightness3); // green
-    $gradientStop3 = array('pos' => $pos3, 'gsColor' => $gsColor3);
+			$pos3 = 1.0; // pos = 100% (extreme high side or upper right corner)
+			$brightness3 = 0.5; // 50%
+			$gsColor3  = new ChartColor;
+			$gsColor3->setColorProperties('00B050', 50, 'srgbClr', $brightness3); // green
+			$gradientStop3 = array('pos' => $pos3, 'gsColor' => $gsColor3);
 
-    $gsLst = 
-    [    $gradientStop1, 
-         $gradientStop2,
-         $gradientStop3
-    ];
-    $gradientAngle = "315"; // appears to be 45deg ccw above horiz
+			$gsLst = 
+			[    $gradientStop1, 
+					 $gradientStop2,
+					 $gradientStop3
+			];
+			$gradientAngle = "315"; // appears to be 45deg ccw above horiz
 
-    $plotArea->setGradientFillProperties($gsLst, $gradientAngle);
+			$plotArea->setGradientFillProperties($gsLst, $gradientAngle);
 
-// Set the chart legend
-    $legend = new Legend(Legend::POSITION_RIGHT, null, 0);
+		// Set the chart legend
+			$legend = new Legend(Legend::POSITION_RIGHT, null, 0);
 
-    $title = new Title (
-  'Correlation between Game score% and each of the other factors 
-(or, which metric tracks Game score?)'
-    );
+			$title = new Title (
+		'Correlation between Game score% and each of the other factors 
+	(or, which metric tracks Game score?)'
+			);
 
-    $xAxisLabel = new Title('Declaring / Pard Decl / Def / %Declaring Score');
-    $xAxis = new Axis();
-    $xAxis->setAxisType ('valAx'); // valAx = same as yAxis ? I hope
-    $xAxis->setAxisNumberProperties('0');
-    $xAxis->setAxisOptionsProperties (
-        Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
-        "0", // horizontalCrossesValue
-        null, // horizontalCrosses
-        null, // axisOrientation
-        null, // major_tick_mark
-        null, // minor_tick_mark
-        "0",   // minimum
-        "100",  // maximum
-        "20", // majorUnit
-        null  // minorUnit
-    );
-    $xAxis->setCrossBetween('midCat');
+			$xAxisLabel = new Title('Declaring / Pard Decl / Def / %Declaring Score');
+			$xAxis = new Axis();
+			$xAxis->setAxisType ('valAx'); // valAx = same as yAxis ? I hope
+			$xAxis->setAxisNumberProperties('0');
+			$xAxis->setAxisOptionsProperties (
+					Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
+					"0", // horizontalCrossesValue
+					null, // horizontalCrosses
+					null, // axisOrientation
+					null, // major_tick_mark
+					null, // minor_tick_mark
+					"0",   // minimum
+					"100",  // maximum
+					"20", // majorUnit
+					null  // minorUnit
+			);
+			$xAxis->setCrossBetween('midCat');
 
-    $yAxisLabel = new Title('Game Score %');
-    $yAxis = new Axis();
-    $yAxis->setAxisNumberProperties ('0');
-    $yAxis->setAxisOptionsProperties (
-        Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
-        "0", // horizontalCrossesValue
-        null, // horizontalCrosses
-        null, // axisOrientation
-        null, // major_tick_mark
-        null, // minor_tick_mark
-        "0",    // minimum
-        "100",  // maximum
-        "20", // majorUnit
-        null  // minorUnit
-    );
-    $yAxis->setCrossBetween('midCat');
-    // $majorGridlines = true;
-    // $minorGridlines = true;
+			$yAxisLabel = new Title('Game Score %');
+			$yAxis = new Axis();
+			$yAxis->setAxisNumberProperties ('0');
+			$yAxis->setAxisOptionsProperties (
+					Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
+					"0", // horizontalCrossesValue
+					null, // horizontalCrosses
+					null, // axisOrientation
+					null, // major_tick_mark
+					null, // minor_tick_mark
+					"0",    // minimum
+					"100",  // maximum
+					"20", // majorUnit
+					null  // minorUnit
+			);
+			$yAxis->setCrossBetween('midCat');
+			// $majorGridlines = true;
+			// $minorGridlines = true;
 
-    $majorGridlines = new GridLines() ;
-    // $majorGridlines->activateObject() ; // Nope. I can't activate it.  I must set some 
-    // property of the Gridline, which will activate it for me.
-    $majorGridlines->setLineStyleProperties(0.5) ; // linewidth, fer instance, should do the trick
+			$majorGridlines = new GridLines() ;
+			// $majorGridlines->activateObject() ; // Nope. I can't activate it.  I must set some 
+			// property of the Gridline, which will activate it for me.
+			$majorGridlines->setLineStyleProperties(0.5) ; // linewidth, fer instance, should do the trick
 
-    // $minorGridlines = new Gridlines() ; 
+			// $minorGridlines = new Gridlines() ; 
 
-// Create the chart
-    $chart = new Chart (
-      "Correlation Chart", // name
-      $title, // title
-      $legend, // legend
-      $plotArea, // plotArea
-      true, // plotVisibleOnly
-      DataSeries::EMPTY_AS_GAP, // displayBlanksAs
-      $xAxisLabel, // xAxisLabel
-      $yAxisLabel, // yAxisLabel
-      $xAxis, // xAxis
-      $yAxis, // yAxis
-      $majorGridlines, // majorGridlines
-      // $minorGridlines, // minorGridlines
-    );
+		// Create the chart
+			$chart = new Chart (
+				"Correlation Chart", // name
+				$title, // title
+				$legend, // legend
+				$plotArea, // plotArea
+				true, // plotVisibleOnly
+				DataSeries::EMPTY_AS_GAP, // displayBlanksAs
+				$xAxisLabel, // xAxisLabel
+				$yAxisLabel, // yAxisLabel
+				$xAxis, // xAxis
+				$yAxis, // yAxis
+				$majorGridlines, // majorGridlines
+				// $minorGridlines, // minorGridlines
+			);
 
-// Set the position where the chart should appear in the worksheet
-    $chart->setTopLeftPosition('A121');
-    $chart->setBottomRightPosition('S144');
-    $chart->setRoundedCorners('true');
+		// Set the position where the chart should appear in the worksheet
+			$chart->setTopLeftPosition('A121');
+			$chart->setBottomRightPosition('S144');
+			$chart->setRoundedCorners('true');
 
-    $Chart_sheet->addChart($chart);
+			$Chart_sheet->addChart($chart);
 
-    # My aveHCP trend chart - different y-axis from above 4 charts!!!
-    $fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-    $border = setClrProps ('7030A0', null, 'srgbClr'); // purple
-    $trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
-    $chrt =  create_Trend_chart
-      ($AveHCPCol, $gm_cnt, 'Session aveHCP', 'plus', 5, $fill, $border, 'Average HCP in a session', 'A145', 'S168', $trendLine, $dateMinMax, $Wrkbk);
-    $Chart_sheet->addChart($chrt);
+			# My aveHCP trend chart - different y-axis from above 4 charts!!!
+			$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+			$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
+			$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
+			$chrt =  create_Trend_chart
+				($AveHCPCol, $gm_cnt, 'Session aveHCP', 'plus', 5, $fill, $border, 'Average HCP in a session', 'A145', 'S168', $trendLine, $dateMinMax, $Wrkbk);
+			$Chart_sheet->addChart($chrt);
 
-    # My aveHCP correlation chart - different y-axis from percentile charts!!!
-    $fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-    $border = setClrProps ('7030A0', null, 'srgbClr'); // purple
-    $trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
-    $chrt =  create_HCP_correlation_chart 
-		 	($AveHCPCol, $GameScrCol, $gm_cnt, 'Game Score %', 'plus', 5, $fill, $border, 'Game Score %', 'A169', 'S192', $trendLine, null, $Wrkbk);
-    $Chart_sheet->addChart($chrt);
+			# My aveHCP correlation chart - different y-axis from percentile charts!!!
+			$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+			$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
+			$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
+			$chrt =  create_HCP_correlation_chart 
+				($AveHCPCol, $GameScrCol, $gm_cnt, 'Game Score %', 'plus', 5, $fill, $border, 'Game Score %', 'A169', 'S192', $trendLine, null, $Wrkbk);
+			$Chart_sheet->addChart($chrt);
 
 
- 
-// Save Excel 2007 file
-    $filename = $pnum . '.xlsx';
-    $writer = IOFactory::createWriter($Wrkbk, 'Xlsx');
-    $writer->setIncludeCharts(true);
-    // $callStartTime = microtime(true);
-    $writer->save($filename);
+	 
+		// Save Excel 2007 file
+			$filename = $pnum . '.xlsx';
+			$writer = IOFactory::createWriter($Wrkbk, 'Xlsx');
+			$writer->setIncludeCharts(true);
+			// $callStartTime = microtime(true);
+			$writer->save($filename);
 
-    unset($writer);
-    unset($reader);
-    unset($Wrkbk);
+			unset($writer);
+			unset($reader);
+			unset($Wrkbk);
 
-//---------------------------- end Chart creation
+		//---------------------------- end Chart creation
 
+		}
 	return $filename;
 }
 
@@ -3699,6 +3712,7 @@ function create_Trend_chart (
 ##################################################################################
 
 function get_HCP_by_board($conn, $pnum, $gmqualifier) {
+	$games = [] ;
 
 	$HCP_Hand_sql =
 "
@@ -3774,6 +3788,7 @@ ORDER BY GameId, board_id;
 	// each row is a $board_id from a $game at a $club.
 	// 'me' sits in $seat, holding $deal
 	$deal_result = mysqli_query($conn, $HCP_Hand_sql); 
+
 	if (!$deal_result) {
     error_log("SQL ERROR: " . mysqli_error($conn));
     error_log("SQL QUERY: " . $HCP_Hand_sql);

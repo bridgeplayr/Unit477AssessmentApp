@@ -1,0 +1,58 @@
+class DataSeriesValues
+{
+    const DATASERIES_TYPE_STRING = 'String';
+    const DATASERIES_TYPE_NUMBER = 'Number';
+
+...
+
++   /**
++    * Series Point Marker.
++    *
++    * @var string
++    */
++   private $pointMarker;
++
++   /**
++    * Series Point Size.
++    *
++    * @var int
++    */
++   private $pointSize = 4 ;
++
++   /**
++    * Fill Color and/or Border color (can be array with strings or 
++    * 6-char hex-value colors if dataseries have custom colors).
++    *
++    * @var string|string[]|int|int[]
++    */
++   private $fillColor;
+
+
+...
+
+    /** as per suggestions from Github user GajowyJ */
++   /**
++    * Get Point size.
++    *
++    * @return int
++    */
++   public function getPointSize()
++   {
++       return $this->pointSize;
++   }
++
++   /** as per suggestions from Github user GajowyJ */
++   /**
++    * Set Point size.
++    *
++    * @param int $size
++    *
++    * @return $this
++    */
++   public function setPointSize($size)
++   {
++       $this->pointSize = $size;
++
++       return $this;
++   }
+
