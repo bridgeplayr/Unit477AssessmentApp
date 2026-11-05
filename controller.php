@@ -8,7 +8,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // ------------------------------------------------------------
-// 0. Includes (your real functions will go here later)
+// 0. Includes (real functions will go here later)
 // ------------------------------------------------------------
 include_once 'helperFunctions.php';
 
@@ -68,9 +68,9 @@ $MAEValues = [
 ];
 
 $results = [];   // all output goes here
-
+$timers = [];		// measure execution times
 // log file to measure execution times
-$logfile = fopen("logfile2.txt", "a") or die("Unable to open file logfile2.txt !");
+$logfile = fopen(LOG_FILE, "a") or die("Unable to open file logfile2.txt !");
 
 
 // ------------------------------------------------------------
@@ -187,7 +187,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   if ($comment !== '') {
 	  $msg = wordwrap($comment,70);
   	$header = "From: rick.garvin@acbridge.org" ;
-  	mail("rick.garvin@acbridge.org", "Bridge WebSQL comment", $msg, $header);
+  	// mail("rick.garvin@acbridge.org", "Bridge WebSQL comment", $msg, $header);
+  	mail("director@acbridge.org", "Bridge WebSQL comment", $msg, $header);
   	$results['comment'] = "<p class='e'>Your comment/request has been sent.</p><br>"; 
 
     $comment_sent = true;   // dummy
@@ -216,23 +217,40 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 					" has played $games_played times including individual, pairs, home-style pairs and teams between $startDate and $stopDate</h3>";
 			} else {
 				$results['history'] =
-          "<p>No games found for ". htmlspecialchars(playername($pnum, $conn)) . "in this time frame.</p>";
+          "<p>No games found for ". htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
+      }
+
+
+  		if ($send && $email !== '') {
+				$plain = html_to_text_table($results['history']);
+        $subj="$pNAME's playing history";
+				// alternative
+  			// $header = "From: rick.garvin@acbridge.org" ;
+				// mail($email, $subj, $mailmsg, $header);
+        senddata($plain, $email, $subj);
       }
 
 			$results['history'].= "<p><a href='#top'>Return to top</a></p>";
- 
-  		if ($send=="yes" && $email !== '') {
-				$mailmsg = "$pNAME has played $games_played times including individual, pairs, home-style pairs and teams between $startDate and $stopDate\r\n" ;
-        $subj="Bridge WebSQL playing history";
-        senddata($mailmsg, $email, $subj);
-      }
 		}
 
   	// --------------------------------------------------------
   	// query2 - Get all partners + teammates + indy psuedo-partners
-  	// --------------------------------------------------------
+  	// -------------------------------------------------------- 
     if ($query2) {
 		$results['partners'] = '';
+
+			$DateTime = date("Y-m-d H:i:s");
+
+			fwrite(
+        $logfile,
+        "\n$DateTime\n\tStart partner list generation $period for $pNAME\n"
+			);
+
+			timer_start($timers, 'partners');
+
+			// $tstamp = microtime(true); 
+			// $startPardList  = sprintf("%f",$tstamp);
+  		// fwrite($logfile, "\n$DateTime \n\tStart Pard list generation $period for $pNAME\n");
 
 			$query2rows = get_all_partners($conn, $pnum, $gmqualifier) ;
 
@@ -240,17 +258,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 			// When that's the only row, the table is empty.  Don't show the table.
 
 			if (count($query2rows) == 1 && (int)$query2rows[0]['total'] === 0) {
-				$results['partners'] = "<p>No partners or teammates found for " . htmlspecialchars(playername($pnum, $conn)) . "in this in this time frame.</p>";
+				$results['partners'] = "<p>No partners or teammates found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
 				// return; do not use return.  It exits controller.
 			} else { // build the table of partners/teammates/indy
 
-				$html =  "<h1 style='text-align:center'>Players who were either a partner or teammate with $pNAME $period</h1>";
+				$html =  "<h1 style='text-align:center'>Partners and teammates of $pNAME $period</h1>";
 				$html .= "<div class='table-container'>" ;
 				$html .= "<table>";
 				$html .= 
 					"<thead>
 						<tr>
-							<th>Total</th>
+							<th>Total*</th>
 							<th>Partner</th>
 							<th>Teammate</th>
 							<th>Indy</th>
@@ -258,6 +276,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 							<th>Pardnum</th>
 						</tr>
 					</thead>";
+
+				$html .= "<tbody>";
 
 				$total_row = null;
 				$actual_team_games = null;
@@ -271,8 +291,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 						$actual_team_games = $r['name'];
 						continue;
 					}
-
-					$html .= "<body>";
 
 					// Normal row
 					$html .= 
@@ -290,7 +308,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				if ($total_row) {
 					$html .= 
 						"<tr>
-							<td>{$total_row['total']}</td>
+							<td>{$total_row['total']}*</td>
 							<td>{$total_row['partner_freq']}</td>
 							<td>{$total_row['teammate_freq']}*</td>
 							<td>{$total_row['indy_freq']}</td>
@@ -298,7 +316,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 							<td></td>
 						 </tr>";
 
-					$html .= "</body>";
+					$html .= "</tbody>";
 					$html .= "</table>";
 					$html .= "</div>"; // table-container
 
@@ -308,11 +326,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				}
 				$html .= "<hr>"; # horiz rule
 
-				$html .= "<p><a href='#top'>Return to top</a></p>";
-
 				$results['partners'] = $html;
-			}
 
+  			if ($send && $email !== '') {
+					$plain = html_to_text_report($html);
+					$subj="$pNAME's pareto of partners";
+					senddata($plain, $email, $subj);
+				}
+
+				$results['partners'].= "<p><a href='#top'>Return to top</a></p>";
+
+				timer_stop(
+					$timers,
+					'partners',
+					$logfile,
+					'partner list generation'
+				);
+			}
   	} // query2
 
   	// --------------------------------------------------------
@@ -325,15 +355,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 			$results['partners_summary'] = '' ;
 
 			$DateTime = date("Y-m-d H:i:s");
-			$tstamp = microtime(true); 
-			$startPardDetails  = sprintf("%f",$tstamp);
-  		fwrite($logfile, "\n$DateTime \n\tStart Pard Details $period for $pNAME\n");
+
+			fwrite(
+        $logfile,
+        "\n$DateTime\n\tStart partner detail calculations $period for $pNAME\n"
+			);
+
+			timer_start($timers, 'partner_details');
+
+			// $tstamp = microtime(true); 
+			// $startPardDetails  = sprintf("%f",$tstamp);
+  		// fwrite($logfile, "\n$DateTime \n\tStart Pard Details calculation $period for $pNAME\n");
 
 			$query3arows = get_partner_details($conn, $pnum, $gmqualifier) ;
 
 			// if (!$query3arows) {
 			if (count($query3arows)== 0) {
-				$results['partner_details'] = "<p>No pair games found for " . htmlspecialchars(playername($pnum, $conn)) . "in this time frame.</p>";
+				$results['partner_details'] = "<p>No pair games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
 				// return; do not use return.  It exits controller.
 			} else { // build the table 
 
@@ -386,12 +424,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 						$avg_ovRtgA    = $total_ovPopA > 0 ? sprintf("%8.1f", 100 * $total_ovRtgA / $total_ovPopA) : '-';
 						$avg_ovRtgB    = $total_ovPopB > 0 ? sprintf("%8.1f", 100 * $total_ovRtgB / $total_ovPopB) : '-';
 						$avg_ovRtgC    = $total_ovPopC > 0 ? sprintf("%8.1f", 100 * $total_ovRtgC / $total_ovPopC) : '-';
-						$avg_ovRtg_string = $avg_ovRtgA . "% " . $avg_ovRtgB . "% " . $avg_ovRtgC . "%";
+						// $avg_ovRtg_string = $avg_ovRtgA . "% " . $avg_ovRtgB . "% " . $avg_ovRtgC . "%";
+						// prettified
+						$avg_ovRtg_string = implode(' ', [
+																	fmt_pct($avg_ovRtgA), 
+																	fmt_pct($avg_ovRtgB), 
+																	fmt_pct($avg_ovRtgC),
+																]);
 
 						$avg_secRtgA   = $total_secPopA > 0 ? sprintf("%8.1f", 100 * $total_secRtgA / $total_secPopA) : '-';
 						$avg_secRtgB   = $total_secPopB > 0 ? sprintf("%8.1f", 100 * $total_secRtgB / $total_secPopB) : '-';
 						$avg_secRtgC   = $total_secPopC > 0 ? sprintf("%8.1f", 100 * $total_secRtgC / $total_secPopC) : '-';
-						$avg_secRtg_string = $avg_secRtgA . "% " . $avg_secRtgB . "% " . $avg_secRtgC . "%";
+						// prettified
+						$avg_secRtg_string = implode(' ', [
+																	fmt_pct($avg_secRtgA), 
+																	fmt_pct($avg_secRtgB), 
+																	fmt_pct($avg_secRtgC),
+																]);
 
 						// emit footer HTML (your existing code)
 						$html .= "</tbody>";
@@ -431,7 +480,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 						$html .= "</table>";
 						$html .= "</div>";      // table-container
 						$html .= "</figure>";   // caption
-						$html .= "<p><a href='#top'>Return to top</a></p>";
+//					$html .= "<p><a href='#top'>Return to top</a></p>";
 				};
 
 				foreach ($query3arows as $r) {
@@ -453,7 +502,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 						$html .= "<figcaption>Performance with " . playername($pardnum, $conn) . 
 										 " who played {$r['games_together']} times with $pNAME $period</figcaption>"; 
 						$html .= "<div class='table-container'>" ;
-						$html .= "<table>";
+						$html .= "<table data-text-schema='partner-detail'>";
 
 						# header 
 						$html .= "<thead>";
@@ -461,7 +510,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 						$html .= 
 							"<tr>
 								<th></th>
-								<th>Mor</th>
+								<th style='vertical-align:bottom'>Mor</th>
 								<th></th>
 								<th></th>
 								<th></th>
@@ -469,11 +518,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 								<th></th>
 								<th></th>
 								<th class='toggle' data-target='grpA'></th>
-								<th class='grpA' colspan='3'>%Hands</th>
+								<th class='grpA' colspan='3'>Play Freq</th>
 								<th class='toggle' data-target='grpB'></th>
-								<th class='grpB' colspan='3'>ETF when</th>
+								<th class='grpB' colspan='3'>Tot ETF when</th>
 								<th class='toggle' data-target='grpE'></th>
-								<th class='grpE' colspan='3'>OLF when</th>
+								<th class='grpE' colspan='3'>Tot OLF when</th>
 								<th></th>
 								<th class='toggle' data-target='grpC'></th>
 								<th class='grpC' style='text-align:left'>OvrlRnk<sup>1</sup> A</th>
@@ -484,7 +533,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 							</tr>";
 						# row 2
 						$html .= 
-							"<tr>
+							"<tr style='vertical-align:bottom'>
 								<th></th>
 								<th>Aft</th>
 								<th></th>
@@ -494,13 +543,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 								<th>game</th>
 								<th></th>
 								<th>Decl</th>
-								<th class='grpA' colspan='2'>Played (typ. 25% ea)</th>
-								<th class='grpA'>Def</th>
+								<th class='grpA' colspan='2'>Dclring (typ 25% ea)</th>
+								<th class='grpA'>Dfndng (typ 50%)</th>
 								<th></th>
 								<th class='grpB' colspan='2'>Dclring (>0 good)</th>
-								<th class='grpB'>Def (<0 good)</th>
+								<th class='grpB'>Dfndng (<0 good)</th>
 								<th></th>
-								<th class='grpE' colspan='2'>Dfnding (0 best)</th>
+								<th class='grpE' colspan='2'>Dfndng (0 best)</th>
 								<th class='grpE'>Dclring (>0 good)</th>
 								<th></th>
 								<th></th>
@@ -512,7 +561,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 							</tr>";
 						# row 3
 						$html .= 
-							"<tr>
+							"<tr style='vertical-align:bottom'>
 								<th>YYMMDD</th>
 								<th>Eve</th>
 								<th>Sctn</th>
@@ -522,15 +571,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 								<th>type</th>
 								<th>Movement</th>
 								<th>vs Dfnd</th>
-								<th class='grpA'>Plyr</th>
+								<th class='grpA'>Me</th>
 								<th class='grpA'>pard</th>
-								<th class='grpA'>(typ. 50%)</th>
+								<th class='grpA'>opp</th>
 								<th>ETF</th>
-								<th class='grpB'>Plyr</th>
+								<th class='grpB'>Me</th>
 								<th class='grpB'>pard</th>
 								<th class='grpB'>opp</th>
 								<th>OLF</th>
-								<th class='grpE'>Plyr</th>
+								<th class='grpE'>Me</th>
 								<th class='grpE'>pard</th>
 								<th class='grpE'>opp</th>
 								<th>Flt</th>
@@ -576,8 +625,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 						$club = 'Corv OnLine';
 					} elseif (preg_match ("/valley/i", $club) or
 										preg_match ("/HOV/i", $club) or 
-										preg_match ("/477/", $club)) {
-						$club = 'HOV'; }
+										preg_match ("/477/", $club)) 
+					{ $club = 'HOV'; }
 
 					// treat HomeStyle pairs games different from pair games
 					if ($gt == 'teams') {
@@ -695,12 +744,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				// After loop ends, close the last partner’s table DUPLICATE!!
 				$emitFooter();
 
-				$results['partner_details'] = $html ;
+				$results['partner_details'] = $html;
 
-				$tstamp = microtime(true); 
-				$endPardDetails  = sprintf("%f",$tstamp);
-				$interval  = sprintf("%f",$endPardDetails - $startPardDetails);
-				fwrite($logfile, "\n\t$interval s for Pard details tabulation\n");
+  			if ($send && $email !== '') {
+					$plain = html_to_text_report($html);
+					$subj="$pNAME's partner details";
+					senddata($plain, $email, $subj);
+				}
+
+				$results['partner_details'].= "<p><a href='#top'>Return to top</a></p>";
+
+				timer_stop(
+					$timers,
+					'partner_details',
+					$logfile,
+					'partner detail calculation'
+				);
 
 
 				// --------------------------------------------------------
@@ -708,16 +767,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				// --------------------------------------------------------
 
 				$DateTime = date("Y-m-d H:i:s");
-				$tstamp = microtime(true); 
-				$startPardSummary  = sprintf("%f",$tstamp);
-				fwrite($logfile, "\n$DateTime \n\tStart Pard Summary $period for $pNAME\n");
+
+				fwrite(
+					$logfile,
+					"\n$DateTime\n\tStart partners summary aggregation $period for $pNAME\n"
+				);
+
+				timer_start($timers, 'partners_summary');
+
+				// $tstamp = microtime(true); 
+				// $startPardSummary  = sprintf("%f",$tstamp);
+				// fwrite($logfile, "\n$DateTime \n\tStart Pard Summary calculation $period for $pNAME\n");
 
 				$query3brows = get_partners_summary($conn, $pnum, $gmqualifier) ;
 
 				// should never get here if there were no pair games found in query4a !!
 				// ... but just in case ...
 				if (count($query3brows)== 0) {
-					$results['partners_summary'] = "<p>No pair games found for " . htmlspecialchars(playername($pnum, $conn)) . "in this time frame.</p>";
+					$results['partners_summary'] = "<p>No pair games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
 					// return; do not use return.  It exits controller.
 				} else { // build the summary tables 
 
@@ -730,26 +797,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 				# frozen header
 				$html .= "<div class='table-container'>" ;
-				$html .= "<table>";
+				$html .= "<table data-text-schema='partners-summary'>";
 
 				# header 
 				$html .= "<thead>";
 				$html .= 
-					"<tr>
+					"<tr style='vertical-align:bottom'>
 						<th data-sort='text'>Partner</th>
 						<th data-sort='num'>Games Together</th>
 						<th data-sort='num'>Ave_Scr%</th>
-						<th data-sort='num'>Av Plyr Declr Frq%</th>
-						<th data-sort='num'>Av Plyr Declr Scr%</th>
-						<th data-sort='num'>Av Pard Declr Frq%</th>
-						<th data-sort='num'>Av Pard Declr Scr%</th>
+						<th data-sort='num'>My Av Declr Frq%</th>
+						<th data-sort='num'>My Av Declr Scr%</th>
+						<th data-sort='num'>Pard Av Declr Frq%</th>
+						<th data-sort='num'>Pard Av Declr Scr%</th>
 						<th data-sort='num'>Our Av Def Frq%</th>
 						<th data-sort='num'>Our Av Def Scr%</th>
 						<th data-sort='num'>TotalBds</th>
-						<th data-sort='num'>PlyrETF/Bd</th>
+						<th data-sort='num'>MyETF/Bd</th>
 						<th data-sort='num'>PardETF/Bd</th>
 						<th data-sort='num'>DefETF/Bd</th>
-						<th data-sort='num'>PlyrOLF/Bd</th>
+						<th data-sort='num'>MyOLF/Bd</th>
 						<th data-sort='num'>PardOLF/Bd</th>
 						<th data-sort='num'>oppOLF/Bd</th>
 						<th data-sort='num'>Av_Ov A rtng%</th>
@@ -805,14 +872,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				$html .= "</div>";      // table-container
 
 				$html .= "<hr>";
-				$html .= "<p><a href='#top'>Return to top</a></p>";
+//			$html .= "<p><a href='#top'>Return to top</a></p>";
 
 				$results['partners_summary'] = $html ;
 
-				$tstamp = microtime(true); 
-				$endPardSummary  = sprintf("%f",$tstamp);
-				$interval  = sprintf("%f",$endPardSummary-$startPardSummary);
-				fwrite($logfile, "\n\t$interval for Pard summary tabulation\n");
+  			if ($send && $email !== '') {
+					$plain = html_to_text_report($html);
+					$subj="$pNAME's partners summary";
+
+					senddata($plain, $email, $subj);
+				}
+
+				$results['partners_summary'].= "<p><a href='#top'>Return to top</a></p>";
+
+				timer_stop(
+					$timers,
+					'partners_summary',
+					$logfile,
+					'partner summary aggregation'
+				);
+
+
+				// $tstamp = microtime(true); 
+				// $endPardSummary  = sprintf("%f",$tstamp);
+				// $interval  = sprintf("%f",$endPardSummary-$startPardSummary);
+				// fwrite($logfile, "\n\t$interval for Pard summary tabulation\n");
 
 				} // query3b
 			} // query3a
@@ -828,15 +912,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 			$results['teammates_summary'] = '' ;
 
 			$DateTime = date("Y-m-d H:i:s");
-			$tstamp = microtime(true); 
-			$startTeamGameDetails  = sprintf("%f",$tstamp);
-  		fwrite($logfile, "\n$DateTime \n\tStart Team Games $period for $pNAME\n");
+
+			fwrite(
+				$logfile,
+				"\n$DateTime\n\tStart teammate detail calculations $period for $pNAME\n"
+			);
+
+			timer_start($timers, 'teammate_details');
+
+			// $tstamp = microtime(true); 
+			// $startTeamGameDetails  = sprintf("%f",$tstamp);
+  		// fwrite($logfile, "\n$DateTime \n\tStart Team Games calculation $period for $pNAME\n");
 
 			$query4arows = get_teamgames($conn, $pnum, $gmqualifier) ;
 
 			// if (!$query4arows) { a null array is 'trueish'; sheesh.
-			if (count($query4arows)== 0) {
-				$results['teamGame_details'] = "<p>No team games found for " . htmlspecialchars(playername($pnum, $conn)) . "in this time frame.</p>";
+			if (count($query4arows) === 0) {
+				$results['teamGame_details'] = "<p>No team games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
 				// return; do not use return.  It exits controller.
 			} else { // build the tables 
 
@@ -853,13 +945,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				// Start a new table for this game
 				$html .= "<hr>";
 				$html .= "<div class='table-container'>" ;
-				$html .= "<table>";
+				$html .= "<table data-text-schema='teammate-detail'>";
 
 				# header 
 				$html .= "<thead>";
 				# row 1
 				$html .= 
-					"<tr>
+					"<tr style='vertical-align:bottom'>
 						<th></th>
 						<th>Mor</th>
 						<th></th>
@@ -878,7 +970,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 					</tr>";
 				# row 2
 				$html .= 
-					"<tr>
+					"<tr style='vertical-align:bottom'>
 						<th></th>
 						<th>Aft</th>
 						<th></th>
@@ -897,7 +989,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 					</tr>";
 				# row 3
 				$html .= 
-					"<tr>
+					"<tr style='vertical-align:bottom'>
 						<th>YYMMDD</th>
 						<th>Eve</th>
 						<th>Sctn</th>
@@ -998,7 +1090,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				$avg_ovRtgA    = $total_ovPopA > 0 ? sprintf("%8.1f", 100 * $total_ovRtgA / $total_ovPopA) : '-';
 				$avg_ovRtgB    = $total_ovPopB > 0 ? sprintf("%8.1f", 100 * $total_ovRtgB / $total_ovPopB) : '-';
 				$avg_ovRtgC    = $total_ovPopC > 0 ? sprintf("%8.1f", 100 * $total_ovRtgC / $total_ovPopC) : '-';
-				$avg_ovRtg_string = $avg_ovRtgA . "% " . $avg_ovRtgB . "% " . $avg_ovRtgC . "%";
+				// $avg_ovRtg_string = $avg_ovRtgA . "% " . $avg_ovRtgB . "% " . $avg_ovRtgC . "%";
+				// prettified
+				$avg_ovRtg_string = implode(' ', [
+															fmt_pct($avg_ovRtgA), 
+															fmt_pct($avg_ovRtgB), 
+															fmt_pct($avg_ovRtgC),
+														]);
 
 				// emit footer HTML (your existing code)
 				$html .= "</tbody>";
@@ -1025,15 +1123,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 				$html .= "</table>";
 				$html .= "</div>";      // table-container
-				$html .= "<p><a href='#top'>Return to top</a></p>";
 
 
 				$results['teamGame_details'] = $html ;
 
-				$tstamp = microtime(true); 
-				$endTeamGameDetails  = sprintf("%f",$tstamp);
-				$interval  = sprintf("%f",$endTeamGameDetails - $startTeamGameDetails);
-				fwrite($logfile, "\n\t$interval s for Team game tabulation\n");
+				if ($send && $email !== '') {
+					$plain = html_to_text_report($html);
+					$subj = "$pNAME's teammate details";
+					senddata($plain, $email, $subj);
+				}
+
+				$results['teamGame_details'] .= "<p><a href='#top'>Return to top</a></p>";
+
+				timer_stop(
+					$timers,
+					'teammate_details',
+					$logfile,
+					'teammate detail calculations'
+				);
+
+				// $tstamp = microtime(true); 
+				// $endTeamGameDetails  = sprintf("%f",$tstamp);
+				// $interval  = sprintf("%f",$endTeamGameDetails - $startTeamGameDetails);
+				// fwrite($logfile, "\n\t$interval s for Teammate performance tabulation\n");
 
 
 				// --------------------------------------------------------
@@ -1041,16 +1153,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				// --------------------------------------------------------
 
 				$DateTime = date("Y-m-d H:i:s");
-				$tstamp = microtime(true); 
-				$startTmateSummary  = sprintf("%f",$tstamp);
-				fwrite($logfile, "\n$DateTime \n\tStart Teammate Summary $period for $pNAME\n");
+
+				fwrite(
+					$logfile,
+					"\n$DateTime\n\tStart teammate summary aggregation $period for $pNAME\n"
+				);
+
+				timer_start($timers, 'teammates_summary');
+
+				// $tstamp = microtime(true); 
+				// $startTmateSummary  = sprintf("%f",$tstamp);
+				// fwrite($logfile, "\n$DateTime \n\tStart Teammate Summary $period for $pNAME\n");
 
 				$query4brows = get_teammates_summary($conn, $pnum, $gmqualifier) ;
 
 				// should never get here if there were no pair games found in query4a !!
 				// ... but just in case ...
 				if (count($query4brows)== 0) {
-					$results['teammates_summary'] = "<p>No team games found for " . htmlspecialchars(playername($pnum, $conn)) . "in this time frame.</p>";
+					$results['teammates_summary'] = "<p>No team games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
 					// return; do not use return.  It exits controller.
 				} else { // build the summary tables 
 
@@ -1063,12 +1183,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 					# frozen header
 					$html .= "<div class='table-container'>" ;
-					$html .= "<table>";
+					$html .= "<table data-text-schema='teammates-summary'>";
 
 					# header 
 					$html .= "<thead>";
 					$html .= 
-						"<tr>
+						"<tr style='vertical-align:bottom'>
 							<th data-sort='text'>Partner</th>
 							<th data-sort='num'>Games Together</th>
 							<th data-sort='num'>Ave_Scr%</th>
@@ -1107,17 +1227,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 					$results['teammates_summary'] = $html ;
 
-					$tstamp = microtime(true); 
-					$endTmateSummary  = sprintf("%f",$tstamp);
-					$interval  = sprintf("%f",$endTmateSummary-$startTmateSummary);
-					fwrite($logfile, "\n\t$interval for Teammate Summary tabulation\n");
+					if ($send && $email !== '') {
+							$plain = html_to_text_report($html);
+							$subj = "$pNAME's teammates summary";
+							senddata($plain, $email, $subj);
+					}
+
+					timer_stop(
+						$timers,
+						'teammates_summary',
+						$logfile,
+						'teammate summary aggregation'
+					);
+
+					// $tstamp = microtime(true); 
+					// $endTmateSummary  = sprintf("%f",$tstamp);
+					// $interval  = sprintf("%f",$endTmateSummary-$startTmateSummary);
+					// fwrite($logfile, "\n\t$interval for Teammate Summary tabulation\n");
 
 				} // query4b
 			} // query4a
 		} // query4a & b
 
   	// --------------------------------------------------------
-		// Query5 Create Excel Spreadsheet of Player's data + charts
+		// Query5 Create Excel Spreadsheet of my data + charts
 		//
 		// Acquire info about all deals played by $pnum over a time period;
 		// Create an Excel ss with tabs containing Trend Charts; Correlation charts; 
@@ -1127,7 +1260,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 		if ($query5) { 
 			$results['spreadsheet'] = '' ;
 
-			$filename = make_spreadsheet($conn, $pnum, $gmqualifier);	
+			$DateTime = date("Y-m-d H:i:s");
+
+			fwrite(
+				$logfile,
+				"\n$DateTime\n\tStart spreadsheet generation $period for $pNAME\n"
+			);
+
+			timer_start($timers, 'spreadsheet');
+
+			$filename = make_spreadsheet($conn, $pnum, $gmqualifier, $logfile);	
 			if (!$filename) {
 					$results['spreadsheet'] =
 							"<p>No games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
@@ -1136,16 +1278,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 							'<a href="' . $filename . '">Excel Wrkbk with Trend charts</a><br>';
 			}
 			
-			// echo '<a href="' . $filename . '">Excel Wrkbk with Trend charts</a><br>';
+			timer_stop(
+				$timers,
+				'spreadsheet',
+				$logfile,
+				'spreadsheet generation'
+			);
+
 		}
 
   	// --------------------------------------------------------
 		// Query6 HCP calculation
   	// --------------------------------------------------------
 		if ($query6) { 
-			$results['HCP summary'] = '';
+			$results['HCP'] = '';
 
-			$period = "from $startDate to $stopDate";
+			$DateTime = date("Y-m-d H:i:s");
+
+			fwrite(
+				$logfile,
+				"\n$DateTime\n\tStart HCP tabulation $period for $pNAME\n"
+			);
+
+			timer_start($timers, 'HCP');
+
+			// $tstamp = microtime(true); 
+			// $startTeamGameDetails  = sprintf("%f",$tstamp);
+  		// fwrite($logfile, "\n$DateTime \n\tStart HCP calculation $period for $pNAME\n");
+
 			$html = "<hr><h1 style='text-align:center'>History of average session HCP for $pNAME $period</h1>";
 			$html .= "<div class='block500pxHigh'>"; 
 
@@ -1155,12 +1315,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 			# frozen header
 			$html .= "<div class='table-container'>" ;
-		  $html .= "<table>";
+		  $html .= "<table data-text-schema='hcp-detail'>";
 
 			# header 
 			$html .= "<thead>";
 			$html .= 
-				"<tr>
+				"<tr style='vertical-align:bottom'>
 					<th>GameDate (YYMMDD+MAE+Section)</th>
 					<th>Club</th>
 					<th>My ave HCP / bd</th>
@@ -1175,8 +1335,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 			$games = get_HCP_by_board($conn, $pnum, $gmqualifier);
 
 			if (count($games)== 0) {
-				$results['HCP summary'] = "<p>No games found for " . htmlspecialchars(playername($pnum, $conn)) . "in this time frame.</p>";
-				// return; do not use return.  It exits controller.
+				$results['HCP'] = "<p>No games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
 			} else { // build the tables 
 
 				// begin body
@@ -1282,9 +1441,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				
 				$html .= "<p>N.B. Some Howell movements require players to change direction from NS to EW.  These calculations assume players from each pair occupy specifically N & E seats, and S & W seats.  If you do not adhere to this guideline, then the ave HCP values are incorrect.<br></p>";
 
-				$html .= "<p><a href='#top'>Return to top</a></p>";
 
-				$results['HCP summary'] = $html ;
+				$results['HCP'] = $html ;
+
+				if ($send && $email !== '') {
+					$plain = html_to_text_report($html);
+					$subj = "$pNAME? & pard HCP tabulation";
+					senddata($plain, $email, $subj);
+				}
+
+				$results['HCP'] .= "<p><a href='#top'>Return to top</a></p>";
+
+				timer_stop(
+					$timers,
+					'HCP',
+					$logfile,
+					'HCP tabulation',
+				);
+
+				// $tstamp = microtime(true); 
+				// $endTeamGameDetails  = sprintf("%f",$tstamp);
+				// $interval  = sprintf("%f",$endTeamGameDetails - $startTeamGameDetails);
+				// fwrite($logfile, "\n\t$interval s for HCP tabulation\n");
+
 			}
 		} # query6
 	} # pnum != ''

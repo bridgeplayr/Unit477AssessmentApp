@@ -1,5 +1,7 @@
 <?php
-define('APP_VERSION', '1.0');
+define('APP_VERSION', '1.1');
+
+date_default_timezone_set('America/Los_Angeles'); // PDT/PST
 
 error_log("CONFIG LOADED");
 error_log("HOST: " . $_SERVER['HTTP_HOST']);
@@ -20,3 +22,4 @@ if ($_SERVER['HTTP_HOST'] === 'localhost:8000') {
     $dbname     = "db4krxl4bpud17";
 }
 
+define('LOG_FILE', 'logfile3.txt');

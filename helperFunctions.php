@@ -20,25 +20,916 @@ use PhpOffice\PhpSpreadsheet\Chart\Axis;
 use PhpOffice\PhpSpreadsheet\Chart\TrendLine;
 use PhpOffice\PhpSpreadsheet\Chart\GridLines;
 
+####################### BEGIN function html_to_text_table ######################
+#
+#    - called to convert HTML tables to aligned text
+#
+function html_to_text_table($html) {
+	
+	// Remove harmless non-table tags like <h3>, <h2>, <h1>, etc.
+	$html = preg_replace('/<\/?h[1-6][^>]*>/i', '', $html);
+
+	// If no HTML tags exist, return the text unchanged
+	if (strip_tags($html) === $html) {
+		return $html;
+	}
+
+	// Otherwise parse as HTML
+	$dom = new DOMDocument();
+	@$dom->loadHTML($html);
+
+	$rows = $dom->getElementsByTagName('tr');
+	$out = "";
+
+	foreach ($rows as $row) {
+		$cells = $row->getElementsByTagName('th');
+		if ($cells->length === 0) {
+			$cells = $row->getElementsByTagName('td');
+		}
+
+		$line = [];
+		foreach ($cells as $cell) {
+			$line[] = trim($cell->textContent);
+		}
+
+		if (!empty($line)) {
+			$out .= implode("\t", $line) . "\n";
+		}
+	}
+
+   return $out;
+}
+#
+#######################   END function html_to_text_table ######################
+
+
+####################### BEGIN function html_to_text_report ######################
+#
+# 		Convert one generated HTML report into readable plain text.
+#
+function html_to_text_report(string $html): string
+{
+    if (trim($html) === '') {
+        return '';
+    }
+
+    /*
+     * If no tags exist, this is already plain text.
+     */
+    if (strip_tags($html) === $html) {
+        return cleanup_report_text($html);
+    }
+
+    /*
+     * DOMDocument represents the HTML as a tree of nodes.
+     */
+    $dom = new DOMDocument('1.0', 'UTF-8');
+
+    /*
+     * Tell libxml to collect HTML parsing errors internally rather than
+     * printing warnings into the generated page.
+     */
+    $previousErrorSetting = libxml_use_internal_errors(true);
+
+    /*
+     * The XML declaration helps older DOMDocument versions interpret the
+     * supplied text as UTF-8.
+     *
+     * LIBXML_HTML_NOIMPLIED prevents DOMDocument from automatically adding
+     * outer <html> and <body> elements.
+     *
+     * LIBXML_HTML_NODEFDTD prevents it from adding a <!DOCTYPE> declaration.
+     */
+    $loaded = $dom->loadHTML(
+			'<?xml encoding="UTF-8">' .
+			'<div id="text-report-root">' .
+			$html .
+			'</div>',
+			LIBXML_HTML_NODEFDTD
+		);
+
+    /*
+     * Discard collected parser warnings and restore the previous libxml
+     * error-handling setting.
+     */
+    libxml_clear_errors();
+    libxml_use_internal_errors($previousErrorSetting);
+
+    if (!$loaded) {
+      /*
+       * A conservative fallback if the HTML could not be parsed.
+       */
+      return cleanup_report_text(
+        html_entity_decode(
+            strip_tags($html),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        )
+      );
+    }
+
+		$root = $dom->getElementById('text-report-root');
+
+		if (!$root) {
+			return '';
+		}
+
+		return cleanup_report_text(
+			render_child_nodes($root)
+		);
+
+}
+
+/* ---------- DOM traversal ---------- */
+
+
+/**
+ * Recursively render one DOM node.
+ */
+function render_report_node(DOMNode $node): string
+{
+    /*
+     * A text node contains actual text between HTML tags.
+     */
+    if ($node->nodeType === XML_TEXT_NODE) {
+        return normalize_inline_text($node->nodeValue ?? '');
+    }
+
+    /*
+     * Ignore comments, processing instructions, and other node types.
+     */
+    if (!($node instanceof DOMElement)) {
+        return '';
+    }
+
+    $tag = strtolower($node->tagName);
+
+    /*
+     * These elements don't contain report content for the text email.
+     */
+    if (in_array($tag, [
+        'script',
+        'style',
+        'template',
+        'noscript',
+        'button'
+    ], true)) {
+        return '';
+    }
+
+    /*
+     * Allow generated HTML to explicitly exclude an element.
+     */
+    if ($node->hasAttribute('data-text-ignore')) {
+        return '';
+    }
+
+    /*
+     * "Return to top" is useful on the web page but meaningless in email.
+     */
+    if ($tag === 'a' && link_is_return_to_top($node)) {
+        return '';
+    }
+
+    /*
+     * Tables have semantic structures and require schema-specific rendering.
+     */
+    if ($tag === 'table') {
+        return "\n" . render_report_table($node) . "\n";
+    }
+
+    /*
+     * Elements that directly create visible line structure.
+     */
+    if ($tag === 'br') {
+        return "\n";
+    }
+
+    if ($tag === 'hr') {
+        return "\n" . str_repeat('-', 72) . "\n";
+    }
+
+    /*
+     * Render all children recursively.
+     */
+    $content = render_child_nodes($node);
+
+    /*
+     * Headings start and end on their own lines.
+     */
+    if (preg_match('/^h[1-6]$/', $tag)) {
+        return "\n" . trim($content) . "\n";
+    }
+
+    /*
+     * A figcaption describes the following table.
+     */
+    if ($tag === 'figcaption') {
+        return "\n" . trim($content) . "\n";
+    }
+
+    /*
+     * General block-level elements.
+     */
+    if (in_array($tag, [
+        'p',
+        'div',
+        'section',
+        'article',
+        'header',
+        'footer',
+        'main',
+        'aside',
+        'nav',
+        'figure',
+        'blockquote',
+        'address'
+    ], true)) {
+        return "\n" . trim($content) . "\n";
+    }
+
+    /*
+     * Lists are not currently prominent in these reports, but basic support
+     * makes the general converter safer.
+     */
+    if ($tag === 'li') {
+        return "\n* " . trim($content);
+    }
+
+    if ($tag === 'ul' || $tag === 'ol') {
+        return "\n" . trim($content) . "\n";
+    }
+
+    /*
+     * Inline tags such as strong, em, span, sup, and code simply return
+     * the text rendered from their children.
+     */
+    return $content;
+}
+
+
+/**
+ * Recursively render the children of an element.
+ */
+function render_child_nodes(DOMNode $parent): string
+{
+    $text = '';
+
+    foreach ($parent->childNodes as $child) {
+        $text .= render_report_node($child);
+    }
+
+    return $text;
+}
+
+
+/* ---------- Table dispatch ---------- */
+
+
+/**
+ * Send a table to its schema-specific renderer.
+ */
+function render_report_table(DOMElement $table): string
+{
+    $schema = strtolower(
+        trim($table->getAttribute('data-text-schema'))
+    );
+
+    switch ($schema) {
+        case 'partner-detail':
+            return render_partner_detail_table($table);
+
+        case 'partners-summary':
+            return render_partner_summary_table($table);
+
+        case 'teammate-detail':
+            return render_teammate_detail_table($table);
+
+        case 'teammates-summary':
+            return render_teammate_summary_table($table);
+
+        default:
+            /*
+             * This fallback prevents an unmarked table from disappearing.
+             */
+            return render_generic_table($table);
+    }
+}
+#
+#######################   END function html_to_text_report #####################
+
+
+
+/* ---------- Partner reports ---------- */
+
+
+function render_partner_detail_table(DOMElement $table): string
+{
+	$records = [];
+
+	foreach (get_table_rows($table, 'tbody') as $row) {
+		$cells = extract_row_cells($row);
+
+		if (count($cells) < 27) {
+			continue;
+		}
+
+		$lines = [];
+
+		/*
+		 * Event-identification line.
+		 *
+		 * Column 4, Score, is deliberately rendered separately.
+		 */
+		$lines[] = implode(' | ', [
+			display_value(cell_value($cells, 0)), // Date
+			display_value(cell_value($cells, 1)), // Session
+			display_value(cell_value($cells, 2)), // Section
+			display_value(cell_value($cells, 3)), // Club
+			display_value(cell_value($cells, 5)), // Scoring
+			display_value(cell_value($cells, 6)), // Type
+			display_value(cell_value($cells, 7)), // Movement
+		]);
+
+		$lines[] =
+			'  Score: ' .
+			display_value(cell_value($cells, 4));
+
+		$lines[] =
+			'  Play frequency: Me ' .
+			display_value(cell_value($cells, 9)) .
+			' | Partner ' .
+			display_value(cell_value($cells, 10)) .
+			' | Opponents ' .
+			display_value(cell_value($cells, 11));
+
+		$lines[] =
+			'  ETF: Me ' .
+			display_value(cell_value($cells, 13)) .
+			' | Partner ' .
+			display_value(cell_value($cells, 14)) .
+			' | Opponents ' .
+			display_value(cell_value($cells, 15));
+
+		$lines[] =
+			'  OLF: Me ' .
+			display_value(cell_value($cells, 17)) .
+			' | Partner ' .
+			display_value(cell_value($cells, 18)) .
+			' | Opponents ' .
+			display_value(cell_value($cells, 19));
+
+		$lines[] =
+			'  Flight: ' .
+			display_value(cell_value($cells, 20));
+
+		$lines[] =
+			'  Overall A/B/C rank: ' .
+			display_value(cell_value($cells, 22));
+
+		$lines[] =
+			'  Section A/B/C rank: ' .
+			display_value(cell_value($cells, 23));
+
+		$lines[] =
+			'  Overall A/B/C rating: ' .
+			display_value(cell_value($cells, 25));
+
+		$lines[] =
+			'  Section A/B/C rating: ' .
+			display_value(cell_value($cells, 26));
+
+		$records[] = implode("\n", $lines);
+	}
+
+	$text = implode("\n\n", $records);
+
+	$footerRows = get_table_rows($table, 'tfoot');
+
+	if ($footerRows !== []) {
+		$footer = render_partner_detail_footer(
+			extract_row_cells($footerRows[0])
+		);
+
+		if ($footer !== '') {
+			$text .= "\n\n" . $footer;
+		}
+	}
+
+	return $text;
+}
+
+
+function render_partner_detail_footer(array $cells): string
+{
+	if ($cells === []) {
+		return '';
+	}
+
+	$lines = ['AVERAGES'];
+
+	$lines[] =
+		'  Score: ' .
+		display_value(cell_value($cells, 4));
+
+	$lines[] =
+		'  Play frequency: Me ' .
+		display_value(cell_value($cells, 9)) .
+		' | Partner ' .
+		display_value(cell_value($cells, 10)) .
+		' | Opponents ' .
+		display_value(cell_value($cells, 11));
+
+	$lines[] =
+		'  ETF: Me ' .
+		display_value(cell_value($cells, 13)) .
+		' | Partner ' .
+		display_value(cell_value($cells, 14)) .
+		' | Opponents ' .
+		display_value(cell_value($cells, 15));
+
+	$lines[] =
+		'  OLF: Me ' .
+		display_value(cell_value($cells, 17)) .
+		' | Partner ' .
+		display_value(cell_value($cells, 18)) .
+		' | Opponents ' .
+		display_value(cell_value($cells, 19));
+
+	$lines[] =
+		'  Overall A/B/C rating: ' .
+		display_value(cell_value($cells, 25));
+
+	$lines[] =
+		'  Section A/B/C rating: ' .
+		display_value(cell_value($cells, 26));
+
+	return implode("\n", $lines);
+}
+
+
+/* ---------- Teammate reports ---------- */
+
+
+function render_teammate_detail_table(DOMElement $table): string
+{
+	$records = [];
+
+	foreach (get_table_rows($table, 'tbody') as $row) {
+		$cells = extract_row_cells($row);
+
+		if (count($cells) < 15) {
+			continue;
+		}
+
+		$lines = [];
+
+		$lines[] = implode(' | ', [
+			display_value(cell_value($cells, 0)), // Date
+			display_value(cell_value($cells, 1)), // Session
+			display_value(cell_value($cells, 2)), // Section
+			display_value(cell_value($cells, 3)), // Club
+			display_value(cell_value($cells, 5)), // Scoring method
+			display_value(cell_value($cells, 6)), // Movement
+		]);
+
+		$lines[] =
+			'  Score: ' .
+			display_value(cell_value($cells, 4));
+
+		$lines[] =
+			'  Rounds: ' .
+			display_value(cell_value($cells, 7));
+
+		/*
+		 * Empty teammate cells are intentionally preserved.
+		 */
+		$lines[] =
+			'  Teammate 1: ' .
+			display_value(cell_value($cells, 8));
+
+		$lines[] =
+			'  Teammate 2: ' .
+			display_value(cell_value($cells, 9));
+
+		$lines[] =
+			'  Teammate 3: ' .
+			display_value(cell_value($cells, 10));
+
+		$lines[] =
+			'  Teammate 4: ' .
+			display_value(cell_value($cells, 11));
+
+		$lines[] =
+			'  Flight: ' .
+			display_value(cell_value($cells, 12));
+
+		$lines[] =
+			'  Overall A/B/C rank: ' .
+			display_value(cell_value($cells, 13));
+
+		$lines[] =
+			'  Overall A/B/C rating: ' .
+			display_value(cell_value($cells, 14));
+
+		$records[] = implode("\n", $lines);
+	}
+
+	$text = implode("\n\n", $records);
+
+	$footerRows = get_table_rows($table, 'tfoot');
+
+	if ($footerRows !== []) {
+		$cells = extract_row_cells($footerRows[0]);
+
+		$footer = implode("\n", [
+			'AVERAGES',
+			'  Score: ' .
+				display_value(cell_value($cells, 4)),
+			'  Overall A/B/C rating: ' .
+				display_value(cell_value($cells, 14)),
+		]);
+
+		$text .= "\n\n" . $footer;
+	}
+
+	return $text;
+}
+
+function render_teammate_summary_table(
+    DOMElement $table
+): string {
+	$labels = [
+		1 => 'Games together',
+		2 => 'Average score',
+		3 => 'Average overall A rating',
+		4 => 'Average overall B rating',
+		5 => 'Average overall C rating',
+	];
+
+	return render_summary_records(
+		$table,
+		$labels,
+		true
+	);
+}
+
+
+function render_partner_summary_table(
+    DOMElement $table
+): string {
+	$labels = [
+		1  => 'Games together',
+		2  => 'Average score',
+		3  => 'My average declarer frequency',
+		4  => 'My average declarer score',
+		5  => 'Partner average declarer frequency',
+		6  => 'Partner average declarer score',
+		7  => 'Our average defensive frequency',
+		8  => 'Our average defensive score',
+		9  => 'Total boards',
+		10 => 'My ETF per board',
+		11 => 'Partner ETF per board',
+		12 => 'Opponent ETF per board',
+		13 => 'My OLF per board',
+		14 => 'Partner OLF per board',
+		15 => 'Opponent OLF per board',
+		16 => 'Average overall A rating',
+		17 => 'Average overall B rating',
+		18 => 'Average overall C rating',
+		19 => 'Average section A rating',
+		20 => 'Average section B rating',
+		21 => 'Average section C rating',
+	];
+
+	return render_summary_records(
+		$table,
+		$labels,
+	);
+}
+
+
+/**
+ * Render one vertical record per person.
+ *
+ * Cell zero is the person's name. The other cells use the supplied labels.
+ */
+function render_summary_records(
+    DOMElement $table,
+    array $labels
+): string {
+	$records = [];
+
+	foreach (get_table_rows($table, 'tbody') as $row) {
+		$cells = extract_row_cells($row);
+
+		$name = cell_value($cells, 0);
+
+		if ($name === '') {
+			continue;
+		}
+
+		$lines = [$name];
+
+		foreach ($labels as $index => $label) {
+			$value = cell_value($cells, $index);
+
+			$lines[] = '  ' . $label . ': ' . display_value($value);
+		}
+
+			$records[] = implode("\n", $lines);
+	}
+
+	return implode("\n\n", $records);
+}
+
+
+/* ---------- Generic tables ---------- */
+
+
+function render_generic_table(DOMElement $table): string
+{
+	$lines = [];
+
+	foreach (['thead', 'tbody', 'tfoot'] as $section) {
+		foreach (get_table_rows($table, $section) as $row) {
+			$cells = extract_row_cells($row);
+
+			if ($cells === []) {
+				continue;
+			}
+
+			$lines[] = implode(' | ', $cells);
+		}
+	}
+
+	return implode("\n", $lines);
+}
+
+
+/* ---------- Shared table utilities ---------- */
+
+
+/**
+ * Return the direct TR children within TABLE/THEAD/TBODY/TFOOT.
+ *
+ * The $section argument should be 'thead', 'tbody', or 'tfoot'.
+ */
+function get_table_rows(
+    DOMElement $table,
+    string $section
+): array {
+	$rows = [];
+
+	foreach ($table->childNodes as $child) {
+		if (
+			!($child instanceof DOMElement) ||
+			strtolower($child->tagName) !== $section
+		) {
+			continue;
+		}
+
+		foreach ($child->childNodes as $row) {
+			if (
+				$row instanceof DOMElement &&
+				strtolower($row->tagName) === 'tr'
+			) {
+				$rows[] = $row;
+			}
+		}
+	}
+
+	return $rows;
+}
+
+
+/**
+ * Extract TD/TH values from one row without losing empty positions.
+ */
+function extract_row_cells(DOMElement $row): array
+{
+	$cells = [];
+
+	foreach ($row->childNodes as $node) {
+		if (!($node instanceof DOMElement)) {
+			continue;
+		}
+
+		$tag = strtolower($node->tagName);
+
+		if ($tag !== 'td' && $tag !== 'th') {
+			continue;
+		}
+
+		$value = clean_report_value($node->textContent);
+
+		/*
+		 * colspan means this HTML cell occupies multiple physical columns.
+		 */
+		$colspan = (int) $node->getAttribute('colspan');
+		$colspan = max(1, $colspan);
+
+		$cells[] = $value;
+
+		/*
+		 * Add empty positions for the remaining columns covered by colspan.
+		 */
+		for ($i = 1; $i < $colspan; $i++) {
+			$cells[] = '';
+		}
+	}
+
+	return $cells;
+}
+
+
+/**
+ * Safely retrieve a cell that might not exist.
+ */
+function cell_value(array $cells, int $index): string
+{
+	return isset($cells[$index])
+		? trim((string) $cells[$index])
+		: '';
+}
+
+
+/* ---------- Text utilities ---------- */
+
+
+/**
+ * Display an empty value explicitly.
+ *
+ * Used when an empty position has meaning, such as teammate positions.
+ */
+function display_value(string $value): string
+{
+	$value = trim($value);
+
+	return $value === '' ? '-' : $value;
+}
+
+# Text-cleanup functions
+#
+function clean_report_value(string $text): string
+{
+	/*
+	 * Convert entities such as &gt;, &amp;, and &quot; into characters.
+	 */
+	$text = html_entity_decode(
+		$text,
+		ENT_QUOTES | ENT_HTML5,
+		'UTF-8'
+	);
+
+	/*
+	 * Replace internal tabs and line breaks with spaces so one table cell
+	 * can't accidentally break the text layout.
+	 */
+	$text = preg_replace('/[\t\r\n]+/u', ' ', $text);
+
+	/*
+	 * Collapse consecutive whitespace characters into one space.
+	 */
+	$text = preg_replace('/\s{2,}/u', ' ', $text);
+
+	return trim($text);
+}
+
+function normalize_inline_text(string $text): string
+{
+	$text = html_entity_decode(
+		$text,
+		ENT_QUOTES | ENT_HTML5,
+		'UTF-8'
+	);
+
+	/*
+	 * Whitespace used to indent the HTML source should not appear in email.
+	 */
+	return preg_replace('/\s+/u', ' ', $text);
+}
+
+
+function cleanup_report_text(string $text): string
+{
+	/*
+	 * Remove spaces at the ends and beginnings of lines.
+	 */
+	$text = preg_replace('/[ \t]+\n/u', "\n", $text);
+	$text = preg_replace('/\n[ \t]+/u', "\n", $text);
+
+	/*
+	 * Reduce three or more consecutive line breaks to two.
+	 *
+	 * Two newline characters create one blank line.
+	 */
+	$text = preg_replace('/\n{3,}/u', "\n\n", $text);
+
+	return trim($text);
+}
+
+
+function link_is_return_to_top(DOMElement $link): bool
+{
+	$href = strtolower(trim($link->getAttribute('href')));
+	$text = strtolower(clean_report_value($link->textContent));
+
+	return $href === '#top' || $text === 'return to top';
+}
+
+function fmt_pct($value): string
+{
+	$value = trim((string)$value);
+
+	if ($value === '' || $value === '-') {
+		return '-';
+	}
+
+	return $value . '%';
+}
+
+function timer_start(array &$timers, string $name): void
+{
+	$timers[$name] = hrtime(true);
+}
+
+
+function timer_stop(
+	array &$timers,
+	string $name,
+	$logfile,
+	string $description = ''
+): float {
+	if (!isset($timers[$name])) {
+		throw new RuntimeException("Timer '$name' was never started.");
+	}
+
+	$elapsed = (hrtime(true) - $timers[$name]) / 1_000_000_000;
+
+	$label = ($description !== '') ? $description : $name;
+
+	fwrite(
+		$logfile,
+		sprintf("\n\t%.6f s for %s\n", $elapsed, $label)
+	);
+
+	unset($timers[$name]);
+
+	return $elapsed;
+}
+
 ###########################    BEGIN function senddata    ######################
 #
 #    - called optionally from history and display_pards
+#    	 and from query3 (partner report) and query4 (teammate report)
+#    	 Maybe even query6 (HCP report) if render_generic_table works
 #
-function senddata($msg, $email,$subj) {
+function senddata($msg, $email, $subj) {
+
+	if (($_SERVER['SERVER_NAME'] ?? '') === 'localhost') {
+
+		echo "<p class='e'><mark>
+			Email sending is disabled on localhost.
+			</mark></p>";
+
+		echo "<hr>";
+		echo "<h2>EMAIL PREVIEW</h2>";
+
+		echo "<p><strong>Subject:</strong> "
+			. htmlspecialchars($subj, ENT_QUOTES, 'UTF-8')
+			. "</p>";
+
+		echo "<p>To: "
+			. htmlspecialchars($email, ENT_QUOTES, 'UTF-8')
+			. "</p>";
+
+		echo "<p>Here is the unsent message text:</p>";
+
+		echo "<pre>"
+			. htmlspecialchars($msg, ENT_QUOTES, 'UTF-8')
+			. "</pre>";
+
+		return;
+	}
 
   if (empty($email)) {
 		echo "<p class='e'><mark>Cannot send your results because you provided no email address.</mark></p>"; echo "<br>";
     return;
-  } else {
-
-		// Always set content-type when sending HTML email
-		$header = "MIME-Version: 1.0" . "\r\n";
-		$header .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-
-		$header .= "From: rick.garvin@acbridge.org" ;
-		mail($email, $subj, $msg, $header);
-		echo "<p class='e'>Your results were sent.</p>"; echo "<br>";
   }
+
+	// Always set content-type when sending HTML email
+	$header = "MIME-Version: 1.0" . "\r\n";
+	$header .= "Content-type:text/plain;charset=UTF-8\r\n";
+	
+	$header .= "From: rick.garvin@acbridge.org" ;
+	$sent = mail($email, $subj, $msg, $header);
+
+	if ($sent) {
+		echo "<p class='e'>Your results were sent.</p><br>";
+	} else {
+		echo "<p class='e'>Unable to send your results.</p><br>";
+	}	
 }
 #
 ###########################    END function senddata    ######################
@@ -267,21 +1158,21 @@ function playername($pnum, $conn) { # provide playernumber; return player's name
 function get_history($conn, $pnum, $gmqualifier) {
 
 	$history_sql = "
-				SELECT count(GameId) AS games_played 
-				FROM players 
-				WHERE $gmqualifier 
-				AND ('$pnum' IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6)) ;
-		  ";
+		SELECT count(GameId) AS games_played 
+		FROM players 
+		WHERE $gmqualifier 
+		AND ('$pnum' IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6)) ;
+	";
 
-      $result = mysqli_query($conn, $history_sql);
+	$result = mysqli_query($conn, $history_sql);
 			
-      if ($result && mysqli_num_rows($result) > 0) {
-				$row = mysqli_fetch_assoc($result) ;
+	if ($result && mysqli_num_rows($result) > 0) {
+		$row = mysqli_fetch_assoc($result) ;
 
-		    return (int)$row['games_played'];
-			}
+		return (int)$row['games_played'];
+	}
 
-			return 0 ;
+	return 0 ;
 } // query1
 
 #
@@ -1942,9 +2833,10 @@ ORDER BY avg_Score DESC, games_together DESC, avgRtngA DESC, teammate_name;
 #
 ##################################################################################
 
-function make_spreadsheet($conn, $pnum, $gmqualifier) {
+function make_spreadsheet($conn, $pnum, $gmqualifier, $logfile) {
   # array of rows in SS
   $dataArray = $SScol = $SSrow = array();
+	$timers = [];		// measure execution times
 
 //	struct for $games HCP calcs
 //		$games[$gmid] = [
@@ -1961,493 +2853,521 @@ function make_spreadsheet($conn, $pnum, $gmqualifier) {
 
 	$details = [];
 	// get pard's pair game details
+	timer_start($timers, 'spreadsheet-query');
 	$details = get_spreadsheet_data ($conn, $pnum, $gmqualifier) ; 
+	timer_stop(
+    $timers,
+    'spreadsheet-query',
+    $logfile,
+    'spreadsheet query'
+	);
 
 	if (count($details)== 0) {
 		return ''; // controller knows no data for ss.
 	} else { // build the spreadsheet
 
-		$games   = [];
-		// get HCP for player + pard
-		$games = get_HCP_by_board($conn, $pnum, $gmqualifier);
+	$games   = [];
+	// get HCP for me + pard
+	timer_start($timers, 'spreadsheet HCP-query');
+	$games = get_HCP_by_board($conn, $pnum, $gmqualifier);
+	timer_stop(
+    $timers,
+    'spreadsheet HCP-query',
+    $logfile,
+    'spreadsheet HCP query'
+	);
 
-		$gm_cnt = 1; // header row
+	$gm_cnt = 1; // header row
 
-		// Fill SS sheet 'data'
-		foreach ($details as $r) {
-			$gm_cnt++; // also row count; row 1 is the header row which is embedded in the xl template
+	// Fill SS sheet 'data'
+	timer_start($timers, 'spreadsheet-populate-data');
+	foreach ($details as $r) {
+		$gm_cnt++; // also row count; row 1 is the header row which is embedded in the xl template
 
-			$SSrow=array(); # start with an empty row
-			
-			# col A is the XL function DATEVALUE(cell)
-			$datevaluestr = '=DATEVALUE(B' . ($gm_cnt) . ')';
-			array_push ($SSrow, $datevaluestr); # first col is Excel DATEVALUE, followed by the SScols
+		$SSrow=array(); # start with an empty row
+		
+		# col A is the XL function DATEVALUE(cell)
+		$datevaluestr = '=DATEVALUE(B' . ($gm_cnt) . ')';
+		array_push ($SSrow, $datevaluestr); # first col is Excel DATEVALUE, followed by the SScols
 
-			$gmid = $r['GameId'] ;
-			$yy =   substr($gmid, 0, 2) ;
-			$mm =   substr($gmid, 2, 2) ;
-			$dd =   substr($gmid, 4, 2) ;
-			$MAE=   substr($gmid, 6, 1);
-			$SSDate = $mm . "/" . $dd . "/" . "20" . $yy; # SS Date
-			array_push ($SSrow, $SSDate );
-			array_push ($SSrow, $gmid );
-			$club = trim($r['club']) ;
-			array_push ($SSrow, $club );
-			array_push ($SSrow, $r['pardName']) ;
-			array_push ($SSrow, $r['pardnum']) ;
-			array_push ($SSrow, $r['games_together']) ;
-			array_push ($SSrow, $r['gametype']) ;
-			array_push ($SSrow, $r['rating']) ;
-			array_push ($SSrow, $r['movement']) ;
-			array_push ($SSrow, $r['ScrMethod']) ;
-			array_push ($SSrow, $r['strat']) ;
-			array_push ($SSrow, $r['Pct']) ;
-			# SS Award; suppress clr2 award if absent
-			$AwardStr = $r['award1'] . " " .$r['color1'] . " " .
-								 ($r['award2'] > 0 ? " + ".$r['award2'] : "")." " .($r['color2'] ?? "") ;
-			array_push ($SSrow, $AwardStr) ;
-			array_push ($SSrow, $r['reason']) ;
-			array_push ($SSrow, $r['boards_played']) ;
-			array_push ($SSrow, $r['hands_I_declared']) ;
-			array_push ($SSrow, $r['hands_pard_declared']) ;
-			array_push ($SSrow, $r['hands_defended']) ;
-			array_push ($SSrow, $r['passout_count']) ;
+		$gmid = $r['GameId'] ;
+		$yy =   substr($gmid, 0, 2) ;
+		$mm =   substr($gmid, 2, 2) ;
+		$dd =   substr($gmid, 4, 2) ;
+		$MAE=   substr($gmid, 6, 1);
+		$SSDate = $mm . "/" . $dd . "/" . "20" . $yy; # SS Date
+		array_push ($SSrow, $SSDate );
+		array_push ($SSrow, $gmid );
+		$club = trim($r['club']) ;
+		array_push ($SSrow, $club );
+		array_push ($SSrow, $r['pardName']) ;
+		array_push ($SSrow, $r['pardnum']) ;
+		array_push ($SSrow, $r['games_together']) ;
+		array_push ($SSrow, $r['gametype']) ;
+		array_push ($SSrow, $r['rating']) ;
+		array_push ($SSrow, $r['movement']) ;
+		array_push ($SSrow, $r['ScrMethod']) ;
+		array_push ($SSrow, $r['strat']) ;
+		array_push ($SSrow, $r['Pct']) ;
+		# SS Award; suppress clr2 award if absent
+		$AwardStr = $r['award1'] . " " .$r['color1'] . " " .
+							 ($r['award2'] > 0 ? " + ".$r['award2'] : "")." " .($r['color2'] ?? "") ;
+		array_push ($SSrow, $AwardStr) ;
+		array_push ($SSrow, $r['reason']) ;
+		array_push ($SSrow, $r['boards_played']) ;
+		array_push ($SSrow, $r['hands_I_declared']) ;
+		array_push ($SSrow, $r['hands_pard_declared']) ;
+		array_push ($SSrow, $r['hands_defended']) ;
+		array_push ($SSrow, $r['passout_count']) ;
 
-			# "%Declaring" header in SS
-			// $SScol[14] = $r['my_dclr_frq'] + $r['pard_dclr_frq']; # "How often we declare"
-			$DeclFrq = 100*($r['hands_I_declared'] + $r['hands_pard_declared']) / $r['boards_played']; # "How often we declare"
-			array_push ($SSrow, $DeclFrq);  
-			array_push ($SSrow, $r['my_dclr_frq']) ;
-			array_push ($SSrow, $r['my_dclr_scr']) ;
-			array_push ($SSrow, $r['pard_dclr_frq']) ;
-			array_push ($SSrow, $r['pard_dclr_scr']) ;
-			array_push ($SSrow, $r['def_frq']) ;
-			array_push ($SSrow, $r['def_scr']) ;
-			array_push ($SSrow, $r['PO_frq']) ;
-			array_push ($SSrow, $r['PO_scr']) ;
-			array_push ($SSrow, $r['ETF_me']) ;
-			array_push ($SSrow, $r['ETF_pard']) ;
-			array_push ($SSrow, $r['ETF_defense']) ;
-			array_push ($SSrow, $r['OLE_me']) ;
-			array_push ($SSrow, $r['OLE_pard']) ;
-			array_push ($SSrow, $r['OLE_opp']) ;
+		# "%Declaring" header in SS
+		// $SScol[14] = $r['my_dclr_frq'] + $r['pard_dclr_frq']; # "How often we declare"
+		$DeclFrq = 100*($r['hands_I_declared'] + $r['hands_pard_declared']) / $r['boards_played']; # "How often we declare"
+		array_push ($SSrow, $DeclFrq);  
+		array_push ($SSrow, $r['my_dclr_frq']) ;
+		array_push ($SSrow, $r['my_dclr_scr']) ;
+		array_push ($SSrow, $r['pard_dclr_frq']) ;
+		array_push ($SSrow, $r['pard_dclr_scr']) ;
+		array_push ($SSrow, $r['def_frq']) ;
+		array_push ($SSrow, $r['def_scr']) ;
+		array_push ($SSrow, $r['PO_frq']) ;
+		array_push ($SSrow, $r['PO_scr']) ;
+		array_push ($SSrow, $r['ETF_me']) ;
+		array_push ($SSrow, $r['ETF_pard']) ;
+		array_push ($SSrow, $r['ETF_defense']) ;
+		array_push ($SSrow, $r['OLE_me']) ;
+		array_push ($SSrow, $r['OLE_pard']) ;
+		array_push ($SSrow, $r['OLE_opp']) ;
 
-			// convert frac Ranking 2.5 => "2/3"
-			// convert null to "-" 
-			$ovRnkA=  fractionalRank($r['ovRnkA']) ;
-			$ovRnkB=  fractionalRank($r['ovRnkB']) ;
-			$ovRnkC=  fractionalRank($r['ovRnkC']) ;
-			$ovRnk_string  = $ovRnkA  . " " . dash($ovRnkB)  . " " .dash($ovRnkC)  ;
+		// convert frac Ranking 2.5 => "2/3"
+		// convert null to "-" 
+		$ovRnkA=  fractionalRank($r['ovRnkA']) ;
+		$ovRnkB=  fractionalRank($r['ovRnkB']) ;
+		$ovRnkC=  fractionalRank($r['ovRnkC']) ;
+		$ovRnk_string  = $ovRnkA  . " " . dash($ovRnkB)  . " " .dash($ovRnkC)  ;
 
-			$secRnkA= fractionalRank($r['secRnkA']) ;
-			$secRnkB= fractionalRank($r['secRnkB']) ;
-			$secRnkC= fractionalRank($r['secRnkC']) ;
-			$secRnk_string = $secRnkA . " " . dash($secRnkB) . " " .dash($secRnkC)  ;
+		$secRnkA= fractionalRank($r['secRnkA']) ;
+		$secRnkB= fractionalRank($r['secRnkB']) ;
+		$secRnkC= fractionalRank($r['secRnkC']) ;
+		$secRnk_string = $secRnkA . " " . dash($secRnkB) . " " .dash($secRnkC)  ;
 
-			array_push ($SSrow, $ovRnk_string) ;  
-			array_push ($SSrow, $secRnk_string) ;  
-								
-			$ovRtg_string = $r['ovRtgA'] . " of " . $r['pop_ov_A'] . " " ; // strat A ov rating always present
-			$ovRtg_string .= (dash($r['ovRtgB']) !== "-") ?  $r['ovRtgB'] . " of " . $r['pop_ov_B'] . " " : " -";
-			$ovRtg_string .= (dash($r['ovRtgC']) !== "-") ?  $r['ovRtgC'] . " of " . $r['pop_ov_C'] : " -";
+		array_push ($SSrow, $ovRnk_string) ;  
+		array_push ($SSrow, $secRnk_string) ;  
+							
+		$ovRtg_string = $r['ovRtgA'] . " of " . $r['pop_ov_A'] . " " ; // strat A ov rating always present
+		$ovRtg_string .= (dash($r['ovRtgB']) !== "-") ?  $r['ovRtgB'] . " of " . $r['pop_ov_B'] . " " : " -";
+		$ovRtg_string .= (dash($r['ovRtgC']) !== "-") ?  $r['ovRtgC'] . " of " . $r['pop_ov_C'] : " -";
 
-			$secRtg_string = $r['secRtgA'] . " of " . $r['pop_sec_A'] . " " ; // strat A sec rating always present 
-			$secRtg_string .= (dash($r['secRtgB']) !== "-") ?  $r['secRtgB'] . " of " . $r['pop_sec_B'] . " " : " -";
-			$secRtg_string .= (dash($r['secRtgC']) !== "-") ?  $r['secRtgC'] . " of " . $r['pop_sec_C'] : " -";
+		$secRtg_string = $r['secRtgA'] . " of " . $r['pop_sec_A'] . " " ; // strat A sec rating always present 
+		$secRtg_string .= (dash($r['secRtgB']) !== "-") ?  $r['secRtgB'] . " of " . $r['pop_sec_B'] . " " : " -";
+		$secRtg_string .= (dash($r['secRtgC']) !== "-") ?  $r['secRtgC'] . " of " . $r['pop_sec_C'] : " -";
 
-			array_push ($SSrow, $ovRtg_string) ; 
-			array_push ($SSrow, $secRtg_string) ; 
+		array_push ($SSrow, $ovRtg_string) ; 
+		array_push ($SSrow, $secRtg_string) ; 
 
-			// aveHCP from $games struct
-			// skip if this game has no deals for HCP calc
-			if (isset($games[$gmid])) {
-				$boards    = $games[$gmid]['boards'];
+		// aveHCP from $games struct
+		// skip if this game has no deals for HCP calc
+		if (isset($games[$gmid])) {
+			$boards    = $games[$gmid]['boards'];
 
-				$mytotalHCP  	 = array_sum(array_column($games[$gmid]['boards'], 'myhcp'));
-				$pardtotalHCP  = array_sum(array_column($games[$gmid]['boards'], 'pardhcp'));
-				$bdsPlayed 		 = count($boards);
-				$myavgHCP 	 	 = $mytotalHCP / $bdsPlayed;
-				$pardavgHCP 	 = $pardtotalHCP / $bdsPlayed;
-				// DO NOT USE sprintf to insert values into Excel - Excel considers it text
-				// $avgHCP 	 = sprintf("%8.2f",$totalHCP / $bdsPlayed);
-				array_push ($SSrow, $myavgHCP) ; 
-				array_push ($SSrow, $pardavgHCP) ; 
-			} else {
-				array_push ($SSrow, null) ; 
-				array_push ($SSrow, null) ; 
-			}
-				#	3 - write	$SSrow to dataArray
-			array_push($dataArray, $SSrow); # add this row to the 2D array of rows
+			$mytotalHCP  	 = array_sum(array_column($games[$gmid]['boards'], 'myhcp'));
+			$pardtotalHCP  = array_sum(array_column($games[$gmid]['boards'], 'pardhcp'));
+			$bdsPlayed 		 = count($boards);
+			$myavgHCP 	 	 = $mytotalHCP / $bdsPlayed;
+			$pardavgHCP 	 = $pardtotalHCP / $bdsPlayed;
+			// DO NOT USE sprintf to insert values into Excel - Excel considers it text
+			// $avgHCP 	 = sprintf("%8.2f",$totalHCP / $bdsPlayed);
+			array_push ($SSrow, $myavgHCP) ; 
+			array_push ($SSrow, $pardavgHCP) ; 
+		} else {
+			array_push ($SSrow, null) ; 
+			array_push ($SSrow, null) ; 
 		}
+			#	3 - write	$SSrow to dataArray
+		array_push($dataArray, $SSrow); # add this row to the 2D array of rows
+	}
+	timer_stop(
+    $timers,
+    'spreadsheet-populate-data',
+    $logfile,
+    'spreadsheet populate'
+	);
 
-		# open the XLSS template
-		$headerOnly   = "headerOnly.xlsx" ;
-		$reader       = IOFactory::createReader('Xlsx');
-		$reader->setIncludeCharts(TRUE);
-		$Wrkbk  = $reader->load($headerOnly);
+	# open the XLSS template
+	timer_start($timers, 'spreadsheet-create-charts');
+	$headerOnly   = "headerOnly.xlsx" ;
+	$reader       = IOFactory::createReader('Xlsx');
+	$reader->setIncludeCharts(TRUE);
+	$Wrkbk  = $reader->load($headerOnly);
 
-		# insert the data into sheet 'Data'
-		$Wrkbk->getSheetByName('Data')
-				->fromArray(  
-				$dataArray,  // The data to set
-				"9999",      // Array values with this value will not be set
-				'A2'         // Top left coordinate of the worksheet range where
-										 //    we want to set these values (default is A1)
-		);  
+	# insert the data into sheet 'Data'
+	$Wrkbk->getSheetByName('Data')
+			->fromArray(  
+			$dataArray,  // The data to set
+			"9999",      // Array values with this value will not be set
+			'A2'         // Top left coordinate of the worksheet range where
+									 //    we want to set these values (default is A1)
+	);  
 
-		# autoformat the columns in 'Data' sheet
-		$Datasheet = $Wrkbk->getSheetByName('Data');
-		foreach (range('A', 'AI') as $col) {
-			$Datasheet->getColumnDimension($col)->setAutoSize(true);  
-		}
+	# autoformat the columns in 'Data' sheet
+	$Datasheet = $Wrkbk->getSheetByName('Data');
+	foreach (range('A', 'AI') as $col) {
+		$Datasheet->getColumnDimension($col)->setAutoSize(true);  
+	}
 
-		$dateMinMax = playDateRange ($gm_cnt, $Wrkbk, $details) ; // return array
-		// measure the time span of games played.  change chart tick marks to match
-		$nQtrs = sprintf("%3.2f",  (($dateMinMax['max'] - $dateMinMax['min'])/30.5)/4 ) ;
-		// echo "<br>play spans $nQtrs quarters<br>";
+	$dateMinMax = playDateRange ($gm_cnt, $Wrkbk, $details) ; // return array
+	// measure the time span of games played.  change chart tick marks to match
+	$nQtrs = sprintf("%3.2f",  (($dateMinMax['max'] - $dateMinMax['min'])/30.5)/4 ) ;
+	// echo "<br>play spans $nQtrs quarters<br>";
 
-	//---------------------------- begin Chart creation
+//---------------------------- begin Chart creation
 
-	# create the 'Charts' worksheet
-		$Wrkbk->createSheet();
-		$Chart_sheet = $Wrkbk->getSheet(1);
-		$Chart_sheet->setTitle("Charts");
+# create the 'Charts' worksheet
+	$Wrkbk->createSheet();
+	$Chart_sheet = $Wrkbk->getSheet(1);
+	$Chart_sheet->setTitle("Charts");
 
-		$Chart_sheet = $Wrkbk->getSheetByName('Charts');
+	$Chart_sheet = $Wrkbk->getSheetByName('Charts');
 
-		// column definitions - because I keep moving and adding columns
-		$DeclScrCol = 'W';
-		$PardScrCol = 'Y';
-		$DefScrCol  = 'AA';
-		$PerCentDeclrngCol = 'U';
-		$GameScrCol = 'M';
-		$AveHCPCol  = 'AN';
+	// column definitions - because I keep moving and adding columns
+	$DeclScrCol = 'W';
+	$PardScrCol = 'Y';
+	$DefScrCol  = 'AA';
+	$PerCentDeclrngCol = 'U';
+	$GameScrCol = 'M';
+	$AveHCPCol  = 'AN';
 
-	// --------------- Add the 5 Trend Charts -----------------------------------
-	// --------------- Add the 6 Trend Charts -----------------------------------
-	//
-		#  create_Trend_chart(
-		#    $column, // column containing data
-		#    $nrows, 
-		#    $metric, // name of data
-		#    $marker, 
-		#    $marker_size, 
-		#    $fill_color array
-		#    $border_color array
-		#    $yLabel, // y-axis label, like metric
-		#    $topleftcell, 
-		#    $bottomrightcell, 
-		#    $trendLine['width','color','type','order','period','dispRSqr','dispEq'], 
-		#    date range info
-		#    workbook
-		#    ) 
+// --------------- Add the 5 Trend Charts -----------------------------------
+// --------------- Add the 6 Trend Charts -----------------------------------
+//
+	#  create_Trend_chart(
+	#    $column, // column containing data
+	#    $nrows, 
+	#    $metric, // name of data
+	#    $marker, 
+	#    $marker_size, 
+	#    $fill_color array
+	#    $border_color array
+	#    $yLabel, // y-axis label, like metric
+	#    $topleftcell, 
+	#    $bottomrightcell, 
+	#    $trendLine['width','color','type','order','period','dispRSqr','dispEq'], 
+	#    date range info
+	#    workbook
+	#    ) 
 
-			// use this one for each single dataseries values
-			$trendLines = [ 
-				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, true, false),
-			] ;
-			// $fill = setClrProps ('tx1', null, 'schemeClr'); // black
+		// use this one for each single dataseries values
+		$trendLines = [ 
+			new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, true, false),
+		] ;
+		// $fill = setClrProps ('tx1', null, 'schemeClr'); // black
 
-			# DeclScr 
-			$fill   = setClrProps ('0070C0', null, 'srgbClr'); // blue
-			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-			$chrt =  create_Trend_chart
-				($GameScrCol, $gm_cnt, 'Declarer Score', 'diamond', 7, $fill, $border, 'Your Declarer Score', 'A1', 'S24', $trendLine, $dateMinMax, $Wrkbk); 
-		
-			$Chart_sheet->addChart($chrt);
+		# DeclScr 
+		$fill   = setClrProps ('0070C0', null, 'srgbClr'); // blue
+		$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+		$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+		$chrt =  create_Trend_chart
+			($GameScrCol, $gm_cnt, 'Declarer Score', 'diamond', 7, $fill, $border, 'Your Declarer Score', 'A1', 'S24', $trendLine, $dateMinMax, $Wrkbk); 
+	
+		$Chart_sheet->addChart($chrt);
 
-			# PardScr
-			$fill   = setClrProps ('FF0000', null, 'srgbClr'); // red
-			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-			$chrt =  create_Trend_chart
-				($PardScrCol, $gm_cnt, 'Pard Score', 'square', 5, $fill, $border, 'Partners Declarer Score', 'A25', 'S48', $trendLine, $dateMinMax, $Wrkbk);
-			$Chart_sheet->addChart($chrt);
-		
-			# DefScr 
-			$fill   = setClrProps ('00B050', null, 'srgbClr'); // green
-			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-			$chrt =  create_Trend_chart
-				($DefScrCol, $gm_cnt, 'Defense Score', 'triangle', 7, $fill, $border, 'Score when Defending', 'A49', 'S72', $trendLine, $dateMinMax, $Wrkbk); 
-			$Chart_sheet->addChart($chrt);
-		
-			# GameScr 
-			$fill   = setClrProps ('000000', null, 'srgbClr'); // black
-			$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-			$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
-			$chrt =  create_Trend_chart
-				($GameScrCol, $gm_cnt, 'Game Score', 'circle', 5, $fill, $border, 'Game Score', 'A73', 'S96', $trendLine, $dateMinMax, $Wrkbk);
-			$Chart_sheet->addChart($chrt);
+		# PardScr
+		$fill   = setClrProps ('FF0000', null, 'srgbClr'); // red
+		$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+		$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+		$chrt =  create_Trend_chart
+			($PardScrCol, $gm_cnt, 'Pard Score', 'square', 5, $fill, $border, 'Partners Declarer Score', 'A25', 'S48', $trendLine, $dateMinMax, $Wrkbk);
+		$Chart_sheet->addChart($chrt);
+	
+		# DefScr 
+		$fill   = setClrProps ('00B050', null, 'srgbClr'); // green
+		$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+		$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+		$chrt =  create_Trend_chart
+			($DefScrCol, $gm_cnt, 'Defense Score', 'triangle', 7, $fill, $border, 'Score when Defending', 'A49', 'S72', $trendLine, $dateMinMax, $Wrkbk); 
+		$Chart_sheet->addChart($chrt);
+	
+		# GameScr 
+		$fill   = setClrProps ('000000', null, 'srgbClr'); // black
+		$border = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+		$trendLine  = array (1.0, $fill, 'linear', null, null, true, true); // disp slope
+		$chrt =  create_Trend_chart
+			($GameScrCol, $gm_cnt, 'Game Score', 'circle', 5, $fill, $border, 'Game Score', 'A73', 'S96', $trendLine, $dateMinMax, $Wrkbk);
+		$Chart_sheet->addChart($chrt);
 
-			# %Declring
-			$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-			$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
-			$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
-			$chrt =  create_Trend_chart
-				($PerCentDeclrngCol, $gm_cnt, 'How often we Declare', 'x', 5, $fill, $border, '%Declaring', 'A97', 'S120', $trendLine, $dateMinMax, $Wrkbk);
-			$Chart_sheet->addChart($chrt);
-
-
-		// --------------- Correlation Chart for Game Score% vs. each of the previous 4 score paramaters -----------------------------------
-
-		// Set the X-Axis Labels  - DeclScr, PardScr, DefScr, %Declaring
-			$dataSeriesLabels = 
-			[
-				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DeclScrCol . '$1', null, 1), // DeclScr
-				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PardScrCol . '$1', null, 1), // PardScr
-				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DefScrCol . '$1', null, 1), // DefScr
-				 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PerCentDeclrngCol . '$1', null, 1), // %Declring
-			];
-
-			$xAxisTickValues = 
-			[
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DeclScrCol . '$2:$'. $DeclScrCol . '$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PardScrCol . '$2:$'. $PardScrCol . '$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DefScrCol . '$2:$'. $DefScrCol . '$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PerCentDeclrngCol . '$2:$'. $PerCentDeclrngCol . '$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
-			];
-
-		// Set the same Y-Axis for each of the above
-			$dataSeriesValues = 
-			[
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'diamond', null, 7),
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'square', null, 5),
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'triangle', null, 7),
-				new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
-				 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'x', null, 5),
-			];
-			$DeclrtrendLines = [ 
-				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-			] ;
-			$PardtrendLines = [ 
-				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-			] ;
-			$DeftrendLines = [ 
-				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-			] ;
-			$PerCentDeclngtrendLines = [ 
-				new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
-			] ;
-		
-			$cell = $DeclScrCol .'1'; // cell containing 'DeclScr'
-			$DeclrTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-			$dataSeriesValues[0]->setTrendLines($DeclrtrendLines);
-		
-			$cell = $PardScrCol .'1'; // cell containing 'PardScr'
-			$PardTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-			$dataSeriesValues[1]->setTrendLines($PardtrendLines);
-		
-			$cell = $DefScrCol  .'1'; // cell containing 'DefScr'
-			$DefTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-			$dataSeriesValues[2]->setTrendLines($DeftrendLines);
-		
-			$cell = $PerCentDeclrngCol .'1'; // cell containing '% Declaring'
-			$PerCentTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
-			$dataSeriesValues[3]->setTrendLines($PerCentDeclngtrendLines);
-
-			// Declr Score - blue 0070C0
-			$dataSeriesValues[0]->getMarkerFillColor()->setColorProperties('0070C0', null, 'srgbClr');
-			$dataSeriesValues[0]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-			$dataSeriesValues[0]
-					->setScatterlines(false) // disable connecting lines
-					->setLineWidth(0.5)
-					->getTrendLines(0)
-					->setTrendLineProperties('linear', null, null, true, false, $DeclrTrendLineLabel) 
-					->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-			$dataSeriesValues[0]->getTrendLines(0)->getLineColor()->setColorProperties ('0070C0', null, 'srgbClr');
-
-			// Pard Score - red FF0000
-			$dataSeriesValues[1]->getMarkerFillColor()->setColorProperties('FF0000', null, 'srgbClr');
-			$dataSeriesValues[1]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-			$dataSeriesValues[1]
-					->setScatterlines(false)
-					->setLineWidth(0.5)
-					->getTrendLines(0)
-					->setTrendLineProperties('linear', null, null, true, false, $PardTrendLineLabel) 
-					->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-			$dataSeriesValues[1]->getTrendLines(0)->getLineColor()->setColorProperties ('FF0000', null, 'srgbClr');
-
-		// Def Score - green 00B050
-			$dataSeriesValues[2]->getMarkerFillColor()->setColorProperties('00B050', null, 'srgbClr');
-			$dataSeriesValues[2]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-			$dataSeriesValues[2]
-					->setScatterlines(false)
-					->setLineWidth(0.5)
-					->getTrendLines(0)
-					->setTrendLineProperties('linear', null, null, true, false, $DefTrendLineLabel) 
-					->setLineStyleProperties (1.50, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-			$dataSeriesValues[2]->getTrendLines(0)->getLineColor()->setColorProperties ('00B050', null, 'srgbClr');
-
-		// %Declaring - purple 7030A0
-			$dataSeriesValues[3]->getMarkerFillColor()->setColorProperties('FFFFFF', null, 'srgbClr');
-			$dataSeriesValues[3]->getMarkerBorderColor()->setColorProperties('7030A0', null, 'srgbClr');
-			$dataSeriesValues[3]
-					->setScatterlines(false)
-					->setLineWidth(0.5)
-					->getTrendLines(0)
-					->setTrendLineProperties('linear', null, null, true, false, $PerCentTrendLineLabel) 
-					->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
-			$dataSeriesValues[3]->getTrendLines(0)->getLineColor()->setColorProperties ('7030A0', null, 'srgbClr');
-
-		// Build the dataseries
-			$series = new DataSeries (
-				DataSeries::TYPE_SCATTERCHART, // plotType
-				null, // plotGrouping (Scatter charts don't have any grouping)
-				range(0, count($dataSeriesValues) - 1), // plotOrder
-				$dataSeriesLabels, // plotLabel
-				$xAxisTickValues, // plotCategory
-				$dataSeriesValues, // plotValues
-				null, // plotDirection
-				false, // smooth line
-				DataSeries::STYLE_SMOOTHMARKER  // plotStyle
-			);
-
-		// Set the series in the plot area
-			$plotArea = new PlotArea(null, [$series]);
-
-			$pos1 = 0; // pos = 0% (extreme low side or lower left corner)
-			$brightness1 = 0; // 0%
-			$gsColor1  = new ChartColor;
-			$gsColor1->setColorProperties('FF0000', 75, 'srgbClr', $brightness1); // red
-			$gradientStop1 = array('pos' => $pos1, 'gsColor' => $gsColor1);
-
-			$pos2 = 0.5; // pos = 50% (middle)
-			$brightness2 = 0.5; // 50%
-			$gsColor2  = new ChartColor;
-			$gsColor2->setColorProperties('FFFF00', 50, 'srgbClr', $brightness2); // yellow
-			$gradientStop2 = array('pos' => $pos2, 'gsColor' => $gsColor2);
-
-			$pos3 = 1.0; // pos = 100% (extreme high side or upper right corner)
-			$brightness3 = 0.5; // 50%
-			$gsColor3  = new ChartColor;
-			$gsColor3->setColorProperties('00B050', 50, 'srgbClr', $brightness3); // green
-			$gradientStop3 = array('pos' => $pos3, 'gsColor' => $gsColor3);
-
-			$gsLst = 
-			[    $gradientStop1, 
-					 $gradientStop2,
-					 $gradientStop3
-			];
-			$gradientAngle = "315"; // appears to be 45deg ccw above horiz
-
-			$plotArea->setGradientFillProperties($gsLst, $gradientAngle);
-
-		// Set the chart legend
-			$legend = new Legend(Legend::POSITION_RIGHT, null, 0);
-
-			$title = new Title (
-		'Correlation between Game score% and each of the other factors 
-	(or, which metric tracks Game score?)'
-			);
-
-			$xAxisLabel = new Title('Declaring / Pard Decl / Def / %Declaring Score');
-			$xAxis = new Axis();
-			$xAxis->setAxisType ('valAx'); // valAx = same as yAxis ? I hope
-			$xAxis->setAxisNumberProperties('0');
-			$xAxis->setAxisOptionsProperties (
-					Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
-					"0", // horizontalCrossesValue
-					null, // horizontalCrosses
-					null, // axisOrientation
-					null, // major_tick_mark
-					null, // minor_tick_mark
-					"0",   // minimum
-					"100",  // maximum
-					"20", // majorUnit
-					null  // minorUnit
-			);
-			$xAxis->setCrossBetween('midCat');
-
-			$yAxisLabel = new Title('Game Score %');
-			$yAxis = new Axis();
-			$yAxis->setAxisNumberProperties ('0');
-			$yAxis->setAxisOptionsProperties (
-					Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
-					"0", // horizontalCrossesValue
-					null, // horizontalCrosses
-					null, // axisOrientation
-					null, // major_tick_mark
-					null, // minor_tick_mark
-					"0",    // minimum
-					"100",  // maximum
-					"20", // majorUnit
-					null  // minorUnit
-			);
-			$yAxis->setCrossBetween('midCat');
-			// $majorGridlines = true;
-			// $minorGridlines = true;
-
-			$majorGridlines = new GridLines() ;
-			// $majorGridlines->activateObject() ; // Nope. I can't activate it.  I must set some 
-			// property of the Gridline, which will activate it for me.
-			$majorGridlines->setLineStyleProperties(0.5) ; // linewidth, fer instance, should do the trick
-
-			// $minorGridlines = new Gridlines() ; 
-
-		// Create the chart
-			$chart = new Chart (
-				"Correlation Chart", // name
-				$title, // title
-				$legend, // legend
-				$plotArea, // plotArea
-				true, // plotVisibleOnly
-				DataSeries::EMPTY_AS_GAP, // displayBlanksAs
-				$xAxisLabel, // xAxisLabel
-				$yAxisLabel, // yAxisLabel
-				$xAxis, // xAxis
-				$yAxis, // yAxis
-				$majorGridlines, // majorGridlines
-				// $minorGridlines, // minorGridlines
-			);
-
-		// Set the position where the chart should appear in the worksheet
-			$chart->setTopLeftPosition('A121');
-			$chart->setBottomRightPosition('S144');
-			$chart->setRoundedCorners('true');
-
-			$Chart_sheet->addChart($chart);
-
-			# My aveHCP trend chart - different y-axis from above 4 charts!!!
-			$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-			$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
-			$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
-			$chrt =  create_Trend_chart
-				($AveHCPCol, $gm_cnt, 'Session aveHCP', 'plus', 5, $fill, $border, 'Average HCP in a session', 'A145', 'S168', $trendLine, $dateMinMax, $Wrkbk);
-			$Chart_sheet->addChart($chrt);
-
-			# My aveHCP correlation chart - different y-axis from percentile charts!!!
-			$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
-			$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
-			$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
-			$chrt =  create_HCP_correlation_chart 
-				($AveHCPCol, $GameScrCol, $gm_cnt, 'Game Score %', 'plus', 5, $fill, $border, 'Game Score %', 'A169', 'S192', $trendLine, null, $Wrkbk);
-			$Chart_sheet->addChart($chrt);
+		# %Declring
+		$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+		$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
+		$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
+		$chrt =  create_Trend_chart
+			($PerCentDeclrngCol, $gm_cnt, 'How often we Declare', 'x', 5, $fill, $border, '%Declaring', 'A97', 'S120', $trendLine, $dateMinMax, $Wrkbk);
+		$Chart_sheet->addChart($chrt);
 
 
-	 
-		// Save Excel 2007 file
-			$filename = $pnum . '.xlsx';
-			$writer = IOFactory::createWriter($Wrkbk, 'Xlsx');
-			$writer->setIncludeCharts(true);
-			// $callStartTime = microtime(true);
-			$writer->save($filename);
+	// --------------- Correlation Chart for Game Score% vs. each of the previous 4 score paramaters -----------------------------------
 
-			unset($writer);
-			unset($reader);
-			unset($Wrkbk);
+	// Set the X-Axis Labels  - DeclScr, PardScr, DefScr, %Declaring
+		$dataSeriesLabels = 
+		[
+			 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DeclScrCol . '$1', null, 1), // DeclScr
+			 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PardScrCol . '$1', null, 1), // PardScr
+			 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $DefScrCol . '$1', null, 1), // DefScr
+			 new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Data!$'. $PerCentDeclrngCol . '$1', null, 1), // %Declring
+		];
 
-		//---------------------------- end Chart creation
+		$xAxisTickValues = 
+		[
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DeclScrCol . '$2:$'. $DeclScrCol . '$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PardScrCol . '$2:$'. $PardScrCol . '$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $DefScrCol . '$2:$'. $DefScrCol . '$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $PerCentDeclrngCol . '$2:$'. $PerCentDeclrngCol . '$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt),
+		];
 
-		}
+	// Set the same Y-Axis for each of the above
+		$dataSeriesValues = 
+		[
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'diamond', null, 7),
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'square', null, 5),
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'triangle', null, 7),
+			new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Data!$'. $GameScrCol . '$2:$'. $GameScrCol .'$'.($gm_cnt+1), 
+			 Properties::FORMAT_CODE_NUMBER, $gm_cnt, null, 'x', null, 5),
+		];
+		$DeclrtrendLines = [ 
+			new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+		] ;
+		$PardtrendLines = [ 
+			new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+		] ;
+		$DeftrendLines = [ 
+			new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+		] ;
+		$PerCentDeclngtrendLines = [ 
+			new TrendLine(TrendLine::TRENDLINE_LINEAR, null, null, false, true),
+		] ;
+	
+		$cell = $DeclScrCol .'1'; // cell containing 'DeclScr'
+		$DeclrTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+		$dataSeriesValues[0]->setTrendLines($DeclrtrendLines);
+	
+		$cell = $PardScrCol .'1'; // cell containing 'PardScr'
+		$PardTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+		$dataSeriesValues[1]->setTrendLines($PardtrendLines);
+	
+		$cell = $DefScrCol  .'1'; // cell containing 'DefScr'
+		$DefTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+		$dataSeriesValues[2]->setTrendLines($DeftrendLines);
+	
+		$cell = $PerCentDeclrngCol .'1'; // cell containing '% Declaring'
+		$PerCentTrendLineLabel = $Datasheet->getCell($cell)->getValue() . " Correlation";
+		$dataSeriesValues[3]->setTrendLines($PerCentDeclngtrendLines);
+
+		// Declr Score - blue 0070C0
+		$dataSeriesValues[0]->getMarkerFillColor()->setColorProperties('0070C0', null, 'srgbClr');
+		$dataSeriesValues[0]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+		$dataSeriesValues[0]
+				->setScatterlines(false) // disable connecting lines
+				->setLineWidth(0.5)
+				->getTrendLines(0)
+				->setTrendLineProperties('linear', null, null, true, false, $DeclrTrendLineLabel) 
+				->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+		$dataSeriesValues[0]->getTrendLines(0)->getLineColor()->setColorProperties ('0070C0', null, 'srgbClr');
+
+		// Pard Score - red FF0000
+		$dataSeriesValues[1]->getMarkerFillColor()->setColorProperties('FF0000', null, 'srgbClr');
+		$dataSeriesValues[1]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+		$dataSeriesValues[1]
+				->setScatterlines(false)
+				->setLineWidth(0.5)
+				->getTrendLines(0)
+				->setTrendLineProperties('linear', null, null, true, false, $PardTrendLineLabel) 
+				->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+		$dataSeriesValues[1]->getTrendLines(0)->getLineColor()->setColorProperties ('FF0000', null, 'srgbClr');
+
+	// Def Score - green 00B050
+		$dataSeriesValues[2]->getMarkerFillColor()->setColorProperties('00B050', null, 'srgbClr');
+		$dataSeriesValues[2]->getMarkerBorderColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+		$dataSeriesValues[2]
+				->setScatterlines(false)
+				->setLineWidth(0.5)
+				->getTrendLines(0)
+				->setTrendLineProperties('linear', null, null, true, false, $DefTrendLineLabel) 
+				->setLineStyleProperties (1.50, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+		$dataSeriesValues[2]->getTrendLines(0)->getLineColor()->setColorProperties ('00B050', null, 'srgbClr');
+
+	// %Declaring - purple 7030A0
+		$dataSeriesValues[3]->getMarkerFillColor()->setColorProperties('FFFFFF', null, 'srgbClr');
+		$dataSeriesValues[3]->getMarkerBorderColor()->setColorProperties('7030A0', null, 'srgbClr');
+		$dataSeriesValues[3]
+				->setScatterlines(false)
+				->setLineWidth(0.5)
+				->getTrendLines(0)
+				->setTrendLineProperties('linear', null, null, true, false, $PerCentTrendLineLabel) 
+				->setLineStyleProperties (1.0, null, null, null, null, null, null, Properties::LINE_STYLE_ARROW_TYPE_OPEN);
+		$dataSeriesValues[3]->getTrendLines(0)->getLineColor()->setColorProperties ('7030A0', null, 'srgbClr');
+
+	// Build the dataseries
+		$series = new DataSeries (
+			DataSeries::TYPE_SCATTERCHART, // plotType
+			null, // plotGrouping (Scatter charts don't have any grouping)
+			range(0, count($dataSeriesValues) - 1), // plotOrder
+			$dataSeriesLabels, // plotLabel
+			$xAxisTickValues, // plotCategory
+			$dataSeriesValues, // plotValues
+			null, // plotDirection
+			false, // smooth line
+			DataSeries::STYLE_SMOOTHMARKER  // plotStyle
+		);
+
+	// Set the series in the plot area
+		$plotArea = new PlotArea(null, [$series]);
+
+		$pos1 = 0; // pos = 0% (extreme low side or lower left corner)
+		$brightness1 = 0; // 0%
+		$gsColor1  = new ChartColor;
+		$gsColor1->setColorProperties('FF0000', 75, 'srgbClr', $brightness1); // red
+		$gradientStop1 = array('pos' => $pos1, 'gsColor' => $gsColor1);
+
+		$pos2 = 0.5; // pos = 50% (middle)
+		$brightness2 = 0.5; // 50%
+		$gsColor2  = new ChartColor;
+		$gsColor2->setColorProperties('FFFF00', 50, 'srgbClr', $brightness2); // yellow
+		$gradientStop2 = array('pos' => $pos2, 'gsColor' => $gsColor2);
+
+		$pos3 = 1.0; // pos = 100% (extreme high side or upper right corner)
+		$brightness3 = 0.5; // 50%
+		$gsColor3  = new ChartColor;
+		$gsColor3->setColorProperties('00B050', 50, 'srgbClr', $brightness3); // green
+		$gradientStop3 = array('pos' => $pos3, 'gsColor' => $gsColor3);
+
+		$gsLst = 
+		[    $gradientStop1, 
+				 $gradientStop2,
+				 $gradientStop3
+		];
+		$gradientAngle = "315"; // appears to be 45deg ccw above horiz
+
+		$plotArea->setGradientFillProperties($gsLst, $gradientAngle);
+
+	// Set the chart legend
+		$legend = new Legend(Legend::POSITION_RIGHT, null, 0);
+
+		$title = new Title (
+	'Correlation between Game score% and each of the other factors 
+(or, which metric tracks Game score?)'
+		);
+
+		$xAxisLabel = new Title('Declaring / Pard Decl / Def / %Declaring Score');
+		$xAxis = new Axis();
+		$xAxis->setAxisType ('valAx'); // valAx = same as yAxis ? I hope
+		$xAxis->setAxisNumberProperties('0');
+		$xAxis->setAxisOptionsProperties (
+				Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
+				"0", // horizontalCrossesValue
+				null, // horizontalCrosses
+				null, // axisOrientation
+				null, // major_tick_mark
+				null, // minor_tick_mark
+				"0",   // minimum
+				"100",  // maximum
+				"20", // majorUnit
+				null  // minorUnit
+		);
+		$xAxis->setCrossBetween('midCat');
+
+		$yAxisLabel = new Title('Game Score %');
+		$yAxis = new Axis();
+		$yAxis->setAxisNumberProperties ('0');
+		$yAxis->setAxisOptionsProperties (
+				Properties::AXIS_LABELS_NEXT_TO, // axis_label pos
+				"0", // horizontalCrossesValue
+				null, // horizontalCrosses
+				null, // axisOrientation
+				null, // major_tick_mark
+				null, // minor_tick_mark
+				"0",    // minimum
+				"100",  // maximum
+				"20", // majorUnit
+				null  // minorUnit
+		);
+		$yAxis->setCrossBetween('midCat');
+		// $majorGridlines = true;
+		// $minorGridlines = true;
+
+		$majorGridlines = new GridLines() ;
+		// $majorGridlines->activateObject() ; // Nope. I can't activate it.  I must set some 
+		// property of the Gridline, which will activate it for me.
+		$majorGridlines->setLineStyleProperties(0.5) ; // linewidth, fer instance, should do the trick
+
+		// $minorGridlines = new Gridlines() ; 
+
+	// Create the chart
+		$chart = new Chart (
+			"Correlation Chart", // name
+			$title, // title
+			$legend, // legend
+			$plotArea, // plotArea
+			true, // plotVisibleOnly
+			DataSeries::EMPTY_AS_GAP, // displayBlanksAs
+			$xAxisLabel, // xAxisLabel
+			$yAxisLabel, // yAxisLabel
+			$xAxis, // xAxis
+			$yAxis, // yAxis
+			$majorGridlines, // majorGridlines
+			// $minorGridlines, // minorGridlines
+		);
+
+	// Set the position where the chart should appear in the worksheet
+		$chart->setTopLeftPosition('A121');
+		$chart->setBottomRightPosition('S144');
+		$chart->setRoundedCorners('true');
+
+		$Chart_sheet->addChart($chart);
+
+		# My aveHCP trend chart - different y-axis from above 4 charts!!!
+		$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+		$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
+		$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
+		$chrt =  create_Trend_chart
+			($AveHCPCol, $gm_cnt, 'Session aveHCP', 'plus', 5, $fill, $border, 'Average HCP in a session', 'A145', 'S168', $trendLine, $dateMinMax, $Wrkbk);
+		$Chart_sheet->addChart($chrt);
+
+		# My aveHCP correlation chart - different y-axis from percentile charts!!!
+		$fill   = setClrProps ('FFFFFF', null, 'srgbClr'); // white
+		$border = setClrProps ('7030A0', null, 'srgbClr'); // purple
+		$trendLine  = array (1.0, $border, 'linear', null, null, true, true); // disp slope
+		$chrt =  create_HCP_correlation_chart 
+			($AveHCPCol, $GameScrCol, $gm_cnt, 'Game Score %', 'plus', 5, $fill, $border, 'Game Score %', 'A169', 'S192', $trendLine, null, $Wrkbk);
+		$Chart_sheet->addChart($chrt);
+
+
+ 
+	// Save Excel 2007 file
+		$filename = $pnum . '.xlsx';
+		$writer = IOFactory::createWriter($Wrkbk, 'Xlsx');
+		$writer->setIncludeCharts(true);
+		// $callStartTime = microtime(true);
+		$writer->save($filename);
+
+		unset($writer);
+		unset($reader);
+		unset($Wrkbk);
+
+	//---------------------------- end Chart creation
+
+	timer_stop(
+    $timers,
+		'spreadsheet-create-charts',
+    $logfile,
+    'spreadsheet create charts'
+	);
+	}
 	return $filename;
 }
 

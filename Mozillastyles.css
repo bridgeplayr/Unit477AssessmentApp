@@ -1,0 +1,285 @@
+		button {
+			font-size: 110%;
+			border-radius: 4px;
+			background-color: #f7f7f7;
+			border: 1px solid #ccc;
+			padding: 8px 10px;
+		}
+    * {
+      box-sizing: border-box;
+    }
+		table, thead, tbody, tr, th, td {
+    	box-sizing: content-box;
+		}
+    body {
+      margin: 0;
+    }
+    p {
+      font-size: 125%;
+      font-family: calibri;
+      line-height: 150%;
+      text-align: justify;
+      text-justify: inter-word;    
+      width: 95%;
+    }
+    h2 {
+      text-align: justify;
+      text-justify: inter-word;    
+      width: 95%;
+    }
+    a {
+      font-size: 125%;
+      font-family: calibri;
+    }
+    fieldset {
+      width: 95%;
+    }
+    .header {
+      background-color: #f1f1f1;
+      padding: 10px;
+      text-align: center;
+    }
+    .column {
+      width: 100%;
+      float: left;
+      padding: 10px;
+    }
+
+    form {
+      font-size: 125%;
+      font-family: calibri;
+      border-radius: 4px;
+    }
+    input, textarea {
+      font-size: 110%;
+      border-radius: 4px;
+    }
+    select {
+      font-size: 100%;
+      width: 30%;
+			/* border: 1px solid black; */
+      border-radius: 4px;
+      background-color: #f1f1f1;
+    }
+    .block400pxHigh {
+			height: 400px;
+    }
+    .block500pxHigh {
+			height: 500px;
+    }
+		/* reset the browser's defaults */
+		table, thead, tbody, tr, th, td {
+    		border: 0;
+    		border-width: 0;
+    		border-style: solid;
+    		border-color: black;
+		}
+		th, td { 
+		  border: 1px solid black;
+      padding: 4px 8px;
+    }
+    table {
+      font-size: 100%;
+      text-align: center;
+      width: 95%;
+			border-collapse: separate;   /* <-- critical */
+    	border-spacing: 0;           /* <-- keeps it looking normal */
+			border: none; /* full border */
+    }
+    .table-container {
+    	max-height: 500px;
+    	overflow-y: auto;
+		} 
+		.table-container thead th {
+    	position: sticky;
+    	top: 0;
+    	background: white;
+    	z-index: 3;
+    	border-bottom: none;
+    	box-shadow: 0 1px 0 0 black;
+		}
+		.table-container thead tr:nth-child(1) th {
+   	  top: 0;
+		}
+		.table-container thead tr:nth-child(2) th {
+    	top: 29px; /* or whatever offset you use */
+		}
+		.table-container thead tr:nth-child(3) th {
+    	top: 58px;
+		}
+
+    .bg {
+      background-color: #D6EEEE;
+    }
+
+    .r {
+      text-align:right;
+     }
+
+    .c {
+      text-align: center;
+    }
+
+    figcaption {
+      font-size: 125%;
+      text-align: center;
+    }
+
+    tr:nth-child(even) {background-color: white;}
+    
+    .error {font-size: 150%; color: #FF0000;}
+
+    .e     {font-size: 120%; color: #FF0000;}
+
+    .biggame {background-color: Chartreuse;}
+
+    .goodgame {background-color: #CCffCC;}
+
+		.weakhand {background-color: #D9F1FF;}
+		.badhand {background-color: #B3E2FF;}
+		.goodhand {background-color: #FFC0C0;}
+		.greathand {background-color: #FF8080;}
+		.AboveAvghand {background-color: #FFE0F1;}
+		.BelowAvghand {background-color: #E0F1FF;}
+
+		table {
+    	border-collapse: collapse !important;
+    	border-style: solid !important;
+    	border-width: 0 !important;
+    	border-color: black !important;
+		}
+
+		th, td {
+    	border: 1px solid black !important;
+		}
+
+		/* collapsed state */
+		.hide-col {
+  		display: none;
+		}
+
+		/* style the toggle button */
+		th.toggle {
+  		cursor: pointer;
+  		width: 20px;
+  		text-align: center;
+  		opacity: 0.6;
+		}
+
+		th.toggle.open {
+  		opacity: 1;
+		}
+
+		th.toggle::after {
+  		content: "▶";
+		}
+
+		th.toggle.open::after {
+  		content: "▼";
+		}
+
+		#overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0,0,0,0.45); /* dimming effect */
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+				z-index: 9999; /* sits above everything */
+		}
+
+		/* Spinner */
+		.loader {
+			border: 8px solid #eee;
+			border-top: 8px solid #3498db;
+			border-radius: 50%;
+			width: 50px;
+			height: 50px;
+			animation: spin 1s linear infinite;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		#overlay p {
+				color: white;
+				margin-top: 15px;
+				font-size: 1.5em;
+		}
+
+		th[data-sort] {
+			cursor: pointer;
+			position: relative;
+			padding-right: 18px; /* space for icon */
+		}
+
+		/* faint default indicator */
+		th[data-sort]::after {
+			content: "⇅";
+			position: absolute;
+			right: 4px;
+			opacity: 0.25;
+			font-size: 0.8em;
+		}
+
+		/* active ascending */
+		th.asc::after {
+			content: "▲";
+			opacity: 0.8;
+		}
+
+		/* active descending */
+		th.desc::after {
+			content: "▼";
+			opacity: 0.8;
+		}
+
+		th[data-sort]:hover {
+			background-color: #f0f0f0;
+	}
+
+fieldset {
+    overflow: visible;
+}
+
+.form-section {
+    margin-bottom: 1em;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.form-section .section-toggle {
+		display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 30px 10px 10px; /* <-- extra right padding */
+		font-size: 1.1em;
+    background: #f7f7f7;
+    border: 1px solid #ccc;   /* <-- makes button visible */
+    cursor: pointer;
+		position: relative;
+}
+
+.form-section .section-content {
+    padding: 10px;
+    display: none; /* collapsed by default */
+}
+
+.form-section .section-toggle::after {
+    content: "▼";
+		position: absolute;
+		right: 10px;
+		top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.2s;
+}
+
+.form-section .section-toggle.open::after {
+    transform: translateY(-50%) rotate(180deg);
+}

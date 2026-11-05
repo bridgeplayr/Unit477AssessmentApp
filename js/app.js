@@ -1,4 +1,3 @@
-<script>
 	/* Sortable columns */
 	document.addEventListener("DOMContentLoaded", () => {
 		document.querySelectorAll("th[data-sort]").forEach(th => {
@@ -48,5 +47,26 @@
 			});
 		});
 	});
-</script>
 
+	document.addEventListener("DOMContentLoaded", () => {
+
+    // collapsible form sections
+    document.querySelectorAll(".form-section .section-toggle").forEach(btn => {
+      btn.addEventListener("click", () => {
+					const content = btn.nextElementSibling;
+					const isOpen = content.style.display === "block";
+					content.style.display = isOpen ? "none" : "block";
+					btn.classList.toggle("open", !isOpen);
+			});
+    });
+
+    // auto-collapse player section once selected
+    const playerSection = document.querySelector("#playerSection");
+    if (playerSection && playerSection.dataset.selected === "yes") {
+			const btn = playerSection.querySelector(".section-toggle");
+			const content = playerSection.querySelector(".section-content");
+			content.style.display = "none";
+			btn.classList.remove("open");
+    }
+	});
+	

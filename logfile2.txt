@@ -112,3 +112,502 @@
 
 2026-10-22 18:44:02 
 	Start Team Games from 2026-10-21 to 2026-10-22 for Richard Garvin
+
+2026-10-23 05:03:26 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.907847 s for Pard details tabulation
+
+2026-10-23 05:03:27 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.708591 for Pard summary tabulation
+
+2026-10-23 05:22:51 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.831730 s for Pard details tabulation
+
+2026-10-23 05:22:52 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.573487 for Pard summary tabulation
+
+2026-10-23 05:23:52 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.884258 s for Pard details tabulation
+
+2026-10-23 05:23:52 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.654560 for Pard summary tabulation
+
+2026-10-24 05:47:30 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	1.052382 s for Pard details tabulation
+
+2026-10-24 05:47:31 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.552753 for Pard summary tabulation
+
+2026-10-24 05:49:07 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.854446 s for Pard details tabulation
+
+2026-10-24 05:49:07 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.543754 for Pard summary tabulation
+
+2026-10-24 06:06:49 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.718541 s for Pard details tabulation
+
+2026-10-24 06:06:49 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.486307 for Pard summary tabulation
+
+2026-10-24 06:07:36 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.798027 s for Pard details tabulation
+
+2026-10-24 06:07:37 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.507679 for Pard summary tabulation
+
+2026-10-24 06:07:52 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.822400 s for Pard details tabulation
+
+2026-10-24 06:07:53 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.603489 for Pard summary tabulation
+
+2026-10-24 06:17:06 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.801245 s for Pard details tabulation
+
+2026-10-24 06:17:07 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.518269 for Pard summary tabulation
+
+2026-10-24 06:17:12 
+	Start Pard Details from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.820808 s for Pard details tabulation
+
+2026-10-24 06:17:13 
+	Start Pard Summary from 2026-01-01 to 2026-10-23 for Richard Garvin
+
+	0.627231 for Pard summary tabulation
+
+2026-10-25 23:26:25 
+	Start Pard Details from 2026-06-01 to 2026-10-23 for Richard Garvin
+
+	0.469260 s for Pard details tabulation
+
+2026-10-25 23:26:26 
+	Start Pard Summary from 2026-06-01 to 2026-10-23 for Richard Garvin
+
+	0.325382 for Pard summary tabulation
+
+2026-10-26 01:50:51 
+	Start Pard Details from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	0.971787 s for Pard details tabulation
+
+2026-10-26 01:50:52 
+	Start Pard Summary from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	0.629292 for Pard summary tabulation
+
+2026-10-26 01:59:09 
+	Start Pard Details from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	0.769674 s for Pard details tabulation
+
+2026-10-26 01:59:09 
+	Start Pard Summary from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	0.482839 for Pard summary tabulation
+
+2026-10-27 00:15:19 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.542689 s for Pard details tabulation
+
+2026-10-27 00:15:20 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.309097 for Pard summary tabulation
+
+2026-10-27 01:13:47 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.408920 s for Pard details tabulation
+
+2026-10-27 01:13:48 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.262183 for Pard summary tabulation
+
+2026-10-27 01:17:07 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.397716 s for Pard details tabulation
+
+2026-10-27 01:17:07 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.255667 for Pard summary tabulation
+
+2026-10-27 01:22:11 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.348226 s for Pard details tabulation
+
+2026-10-27 01:22:12 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.251582 for Pard summary tabulation
+
+2026-10-27 05:37:17 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.424455 s for Pard details tabulation
+
+2026-10-27 05:37:17 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.256598 for Pard summary tabulation
+
+2026-10-27 05:38:33 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.403186 s for Pard details tabulation
+
+2026-10-27 05:38:33 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.246256 for Pard summary tabulation
+
+2026-10-27 05:41:27 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.349837 s for Pard details tabulation
+
+2026-10-27 05:41:27 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.237804 for Pard summary tabulation
+
+2026-10-27 05:47:49 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.358512 s for Pard details tabulation
+
+2026-10-27 05:47:49 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.255199 for Pard summary tabulation
+
+2026-10-27 05:48:20 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.375767 s for Pard details tabulation
+
+2026-10-27 05:48:20 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.302579 for Pard summary tabulation
+
+2026-10-27 05:52:12 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.345932 s for Pard details tabulation
+
+2026-10-27 05:52:13 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.246953 for Pard summary tabulation
+
+2026-10-27 17:18:19 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.432718 s for Pard details tabulation
+
+2026-10-27 17:18:20 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.340013 for Pard summary tabulation
+
+2026-10-27 17:25:39 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.372431 s for Pard details tabulation
+
+2026-10-27 17:25:39 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.260072 for Pard summary tabulation
+
+2026-10-27 17:35:07 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.341560 s for Pard details tabulation
+
+2026-10-27 17:35:08 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.246654 for Pard summary tabulation
+
+2026-10-27 17:38:32 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.360777 s for Pard details tabulation
+
+2026-10-27 17:38:33 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.253430 for Pard summary tabulation
+
+2026-10-27 17:40:03 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.345494 s for Pard details tabulation
+
+2026-10-27 17:40:03 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.245832 for Pard summary tabulation
+
+2026-10-27 17:40:56 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.382036 s for Pard details tabulation
+
+2026-10-27 17:40:56 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.299634 for Pard summary tabulation
+
+2026-10-27 18:28:50 
+	Start Pard Details from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.439483 s for Pard details tabulation
+
+2026-10-27 18:28:50 
+	Start Pard Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.271563 for Pard summary tabulation
+
+2026-10-27 18:34:41 
+	Start Team Games from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+	0.217640 s for Team game tabulation
+
+2026-10-27 18:34:41 
+	Start Teammate Summary from 2026-06-01 to 2026-10-26 for Richard Garvin
+
+2026-10-27 18:35:22 
+	Start Team Games from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	1.009447 s for Team game tabulation
+
+2026-10-27 18:35:23 
+	Start Teammate Summary from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	0.783326 for Teammate Summary tabulation
+
+2026-10-27 18:40:03 
+	Start Team Games from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	0.656382 s for Team game tabulation
+
+2026-10-27 18:40:04 
+	Start Teammate Summary from 2026-01-01 to 2026-10-26 for Richard Garvin
+
+	0.660156 for Teammate Summary tabulation
+
+2026-11-03 02:23:38 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.226934 s for Pard details tabulation
+
+2026-11-03 02:23:38 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.141535 for Pard summary tabulation
+
+2026-11-03 02:27:30 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.153044 s for Pard details tabulation
+
+2026-11-03 02:27:30 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.131880 for Pard summary tabulation
+
+2026-11-03 04:50:24 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.202526 s for Pard details tabulation
+
+2026-11-03 04:50:24 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.169290 for Pard summary tabulation
+
+2026-11-03 04:56:51 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.175467 s for Pard details tabulation
+
+2026-11-03 04:56:51 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.159552 for Pard summary tabulation
+
+2026-11-03 05:02:17 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.174346 s for Pard details tabulation
+
+2026-11-03 05:02:17 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.162674 for Pard summary tabulation
+
+2026-11-03 05:41:03 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.216407 s for Pard details tabulation
+
+2026-11-03 05:41:04 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.177036 for Pard summary tabulation
+
+2026-11-03 06:17:02 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.197126 s for Pard details tabulation
+
+2026-11-03 06:17:02 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.176110 for Pard summary tabulation
+
+2026-11-03 06:25:41 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.174905 s for Pard details tabulation
+
+2026-11-03 06:25:41 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.163416 for Pard summary tabulation
+
+2026-11-03 06:28:46 
+	Start Team Games from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.109116 s for Team game tabulation
+
+2026-11-03 06:28:46 
+	Start Teammate Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+2026-11-03 06:30:59 
+	Start Team Games from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.794311 s for Team game tabulation
+
+2026-11-03 06:31:00 
+	Start Teammate Summary from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.742944 for Teammate Summary tabulation
+
+2026-11-03 06:39:35 
+	Start Team Games from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.757531 s for Team game tabulation
+
+2026-11-03 06:39:36 
+	Start Teammate Summary from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.740991 for Teammate Summary tabulation
+
+2026-11-03 06:47:12 
+	Start Team Games from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.762288 s for Team game tabulation
+
+2026-11-03 06:47:13 
+	Start Teammate Summary from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.734998 for Teammate Summary tabulation
+
+2026-11-03 06:49:08 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.186491 s for Pard details tabulation
+
+2026-11-03 06:49:09 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.161109 for Pard summary tabulation
+
+2026-11-03 07:36:13 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.206546 s for Pard details tabulation
+
+2026-11-03 07:36:13 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.156967 for Pard summary tabulation
+
+2026-11-03 07:37:24 
+	Start Team Games from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.096237 s for Team game tabulation
+
+2026-11-03 07:37:24 
+	Start Teammate Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+2026-11-03 07:37:46 
+	Start Team Games from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.718145 s for Team game tabulation
+
+2026-11-03 07:37:47 
+	Start Teammate Summary from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	0.707264 for Teammate Summary tabulation
+
+2026-11-03 17:13:54 
+	Start Pard Details from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.211284 s for Pard details tabulation
+
+2026-11-03 17:13:55 
+	Start Pard Summary from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.183978 for Pard summary tabulation
+
+2026-11-03 20:31:34
+	Start partner list generation from 2026-08-01 to 2026-11-02 for Richard Garvin
+
+	0.032899 s for partner list generation
