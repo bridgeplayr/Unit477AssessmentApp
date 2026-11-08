@@ -82,3 +82,188 @@
 	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
 
 	3.552675 s for HCP tabulation
+
+2026-11-05 22:23:36
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+	3.885808 s for HCP tabulation
+
+2026-11-05 22:30:41
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	3.652872 s inside get_HCP_by_board()
+
+	3.654034 s for HCP tabulation
+
+2026-11-05 22:36:03
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+2026-11-05 22:36:39
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	3.701484 s for HCP SQL query
+	3.715610 s inside get_HCP_by_board()
+
+	3.716777 s for HCP tabulation
+
+2026-11-06 21:13:36
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+2026-11-06 21:18:15
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+2026-11-06 21:40:01
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	0.028762 s to build tmp_my_game_ids; games: 168
+	3.778145 s for HCP SQL query
+	3.841152 s inside get_HCP_by_board()
+
+	3.852739 s for HCP tabulation
+
+2026-11-07 00:18:17
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	0.020568 s to build tmp_my_game_ids; games: 168
+	HCP EXPLAIN:
+	                type=         key=NULL                                rows=         Extra=
+	3.710015 s for HCP SQL query
+	3.759617 s inside get_HCP_by_board()
+
+	3.761067 s for HCP tabulation
+
+2026-11-07 00:27:46
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	0.015973 s to build tmp_my_game_ids; games: 168
+	HCP EXPLAIN:
+	Array
+(
+    [EXPLAIN] => -> Sort: GameId, board_id
+    -> Stream results  (cost=19.8e+6 rows=1.89e+6)
+        -> Inner hash join (r.GameId = mg.GameId), (r.club = mg.club)  (cost=19.8e+6 rows=1.89e+6)
+            -> Covering index scan on mg using PRIMARY  (cost=0.00247 rows=168)
+            -> Hash
+                -> Nested loop inner join  (cost=872389 rows=1.12e+6)
+                    -> Filter: ((h.GameId is not null) and (h.club is not null) and (h.board_id is not null))  (cost=17100 rows=158953)
+                        -> Table scan on h  (cost=17100 rows=158953)
+                    -> Filter: (7889224 in (r.npnum,r.spnum,r.epnum,r.wpnum))  (cost=4.67 rows=7.07)
+                        -> Index lookup on r using idx_results_game_club_board (GameId = h.GameId, club = h.club, board_id = h.board_id), with index condition: ((h.GameId = r.GameId) and (h.club = r.club))  (cost=4.67 rows=7.07)
+
+)
+
+	3.470685 s for HCP SQL query
+	3.504347 s inside get_HCP_by_board()
+
+	3.505785 s for HCP tabulation
+
+2026-11-07 00:38:28
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	0.015432 s to build tmp_my_game_ids; games: 168
+
+2026-11-07 00:52:10
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	0.012635 s to build tmp_my_game_ids; games: 168
+	PHP database: bridge_local
+	handsdd indexes seen by PHP:
+		PRIMARY                             column=id              seq=1
+		id                                  column=id              seq=1
+		idx_handsdd_game                    column=GameId          seq=1
+		idx_handsdd_game                    column=club            seq=2
+	HCP EXPLAIN:
+	Array
+(
+    [EXPLAIN] => -> Sort: r.GameId, r.board_id
+    -> Stream results  (cost=440e+6 rows=4.4e+6)
+        -> Inner hash join (h.board_id = r.board_id), (h.GameId = r.GameId), (h.club = r.club)  (cost=440e+6 rows=4.4e+6)
+            -> Table scan on h  (cost=1.99 rows=158953)
+            -> Hash
+                -> Nested loop inner join  (cost=20803 rows=27657)
+                    -> Covering index scan on mg using PRIMARY  (cost=17.8 rows=168)
+                    -> Filter: ('7889224' in (r.npnum,r.spnum,r.epnum,r.wpnum))  (cost=107 rows=165)
+                        -> Index lookup on r using idx_results_game (GameId = mg.GameId, club = mg.club), with index condition: ((r.GameId = mg.GameId) and (r.club = mg.club))  (cost=107 rows=165)
+
+)
+
+	0.452574 s for HCP SQL query
+	0.526597 s inside get_HCP_by_board()
+
+	0.527764 s for HCP tabulation
+
+2026-11-07 18:21:34
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+2026-11-07 18:25:05
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+2026-11-07 18:25:27
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+2026-11-07 18:28:53
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+
+2026-11-07 18:35:09
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Richard Garvin
+	0.027559 s to build tmp_my_game_ids; games: 168
+	0.431417 s for HCP SQL query
+	0.476596 s inside get_HCP_by_board()
+
+	0.480598 s for HCP tabulation
+
+2026-11-07 18:39:32
+	Start partner list generation from 2026-01-01 to 2026-11-02 for Eileen Boal
+
+	0.202044 s for partner list generation
+
+2026-11-07 18:39:32
+	Start partner detail calculations from 2026-01-01 to 2026-11-02 for Eileen Boal
+
+	1.489073 s for partner detail calculation
+
+2026-11-07 18:39:34
+	Start partners summary aggregation from 2026-01-01 to 2026-11-02 for Eileen Boal
+
+	0.645699 s for partner summary aggregation
+
+2026-11-07 18:39:34
+	Start teammate detail calculations from 2026-01-01 to 2026-11-02 for Eileen Boal
+
+	0.886093 s for teammate detail calculations
+
+2026-11-07 18:39:35
+	Start teammate summary aggregation from 2026-01-01 to 2026-11-02 for Eileen Boal
+
+	0.715162 s for teammate summary aggregation
+
+2026-11-07 18:39:36
+	Start spreadsheet generation from 2026-01-01 to 2026-11-02 for Eileen Boal
+
+	0.731625 s for spreadsheet query
+	0.012890 s to build tmp_my_game_ids; games: 194
+	0.299117 s for HCP SQL query
+
+	0.326500 s for spreadsheet HCP query
+
+	0.001611 s for spreadsheet populate
+
+	3.198825 s for spreadsheet create charts
+
+	4.259958 s for spreadsheet generation
+
+2026-11-07 18:39:40
+	Start HCP tabulation from 2026-01-01 to 2026-11-02 for Eileen Boal
+	0.013684 s to build tmp_my_game_ids; games: 194
+	0.299116 s for HCP SQL query
+	0.325936 s inside get_HCP_by_board()
+
+	0.327799 s for HCP tabulation
+
+2026-11-07 18:49:39
+	Start spreadsheet generation from 2026-01-01 to 2026-11-02 for Eileen Boal
+
+	0.800897 s for spreadsheet query
+	0.011315 s to build tmp_my_game_ids; games: 194
+	0.307255 s for HCP SQL query
+
+	0.330686 s for spreadsheet HCP query
+
+	0.001352 s for spreadsheet populate
+
+	0.223561 s for spreadsheet create charts
+
+	1.357703 s for spreadsheet generation

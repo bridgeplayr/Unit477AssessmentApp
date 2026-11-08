@@ -248,10 +248,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 			timer_start($timers, 'partners');
 
-			// $tstamp = microtime(true); 
-			// $startPardList  = sprintf("%f",$tstamp);
-  		// fwrite($logfile, "\n$DateTime \n\tStart Pard list generation $period for $pNAME\n");
-
 			$query2rows = get_all_partners($conn, $pnum, $gmqualifier) ;
 
 			// $query2rows will always contain a footer row containing the TOTALs.
@@ -362,10 +358,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 			);
 
 			timer_start($timers, 'partner_details');
-
-			// $tstamp = microtime(true); 
-			// $startPardDetails  = sprintf("%f",$tstamp);
-  		// fwrite($logfile, "\n$DateTime \n\tStart Pard Details calculation $period for $pNAME\n");
 
 			$query3arows = get_partner_details($conn, $pnum, $gmqualifier) ;
 
@@ -775,13 +767,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 				timer_start($timers, 'partners_summary');
 
-				// $tstamp = microtime(true); 
-				// $startPardSummary  = sprintf("%f",$tstamp);
-				// fwrite($logfile, "\n$DateTime \n\tStart Pard Summary calculation $period for $pNAME\n");
-
 				$query3brows = get_partners_summary($conn, $pnum, $gmqualifier) ;
 
-				// should never get here if there were no pair games found in query4a !!
+				// should never get here if there were no pair games found in query3a !!
 				// ... but just in case ...
 				if (count($query3brows)== 0) {
 					$results['partners_summary'] = "<p>No pair games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
@@ -892,12 +880,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 					'partner summary aggregation'
 				);
 
-
-				// $tstamp = microtime(true); 
-				// $endPardSummary  = sprintf("%f",$tstamp);
-				// $interval  = sprintf("%f",$endPardSummary-$startPardSummary);
-				// fwrite($logfile, "\n\t$interval for Pard summary tabulation\n");
-
 				} // query3b
 			} // query3a
 		} // query3a & b combined
@@ -920,16 +902,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 			timer_start($timers, 'teammate_details');
 
-			// $tstamp = microtime(true); 
-			// $startTeamGameDetails  = sprintf("%f",$tstamp);
-  		// fwrite($logfile, "\n$DateTime \n\tStart Team Games calculation $period for $pNAME\n");
-
 			$query4arows = get_teamgames($conn, $pnum, $gmqualifier) ;
 
-			// if (!$query4arows) { a null array is 'trueish'; sheesh.
 			if (count($query4arows) === 0) {
 				$results['teamGame_details'] = "<p>No team games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
-				// return; do not use return.  It exits controller.
 			} else { // build the tables 
 
 				// accumulators
@@ -1142,11 +1118,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 					'teammate detail calculations'
 				);
 
-				// $tstamp = microtime(true); 
-				// $endTeamGameDetails  = sprintf("%f",$tstamp);
-				// $interval  = sprintf("%f",$endTeamGameDetails - $startTeamGameDetails);
-				// fwrite($logfile, "\n\t$interval s for Teammate performance tabulation\n");
-
 
 				// --------------------------------------------------------
 				// Query4b Summary of teammates' performance
@@ -1160,10 +1131,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				);
 
 				timer_start($timers, 'teammates_summary');
-
-				// $tstamp = microtime(true); 
-				// $startTmateSummary  = sprintf("%f",$tstamp);
-				// fwrite($logfile, "\n$DateTime \n\tStart Teammate Summary $period for $pNAME\n");
 
 				$query4brows = get_teammates_summary($conn, $pnum, $gmqualifier) ;
 
@@ -1240,11 +1207,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 						'teammate summary aggregation'
 					);
 
-					// $tstamp = microtime(true); 
-					// $endTmateSummary  = sprintf("%f",$tstamp);
-					// $interval  = sprintf("%f",$endTmateSummary-$startTmateSummary);
-					// fwrite($logfile, "\n\t$interval for Teammate Summary tabulation\n");
-
 				} // query4b
 			} // query4a
 		} // query4a & b
@@ -1302,10 +1264,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 			timer_start($timers, 'HCP');
 
-			// $tstamp = microtime(true); 
-			// $startTeamGameDetails  = sprintf("%f",$tstamp);
-  		// fwrite($logfile, "\n$DateTime \n\tStart HCP calculation $period for $pNAME\n");
-
 			$html = "<hr><h1 style='text-align:center'>History of average session HCP for $pNAME $period</h1>";
 			$html .= "<div class='block500pxHigh'>"; 
 
@@ -1332,7 +1290,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 			// end header
 			$html .= "</thead>";
 
-			$games = get_HCP_by_board($conn, $pnum, $gmqualifier);
+			$t0 = hrtime(true);
+
+			$games = get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile);
+
+			$t1 = hrtime(true);
+
+			fwrite(
+					$logfile,
+					sprintf(
+							"\t%.6f s inside get_HCP_by_board()\n",
+							($t1 - $t0) / 1e9
+					)
+			);
 
 			if (count($games)== 0) {
 				$results['HCP'] = "<p>No games found for " . htmlspecialchars(playername($pnum, $conn)) . " in this time frame.</p>";
@@ -1458,12 +1428,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 					$logfile,
 					'HCP tabulation',
 				);
-
-				// $tstamp = microtime(true); 
-				// $endTeamGameDetails  = sprintf("%f",$tstamp);
-				// $interval  = sprintf("%f",$endTeamGameDetails - $startTeamGameDetails);
-				// fwrite($logfile, "\n\t$interval s for HCP tabulation\n");
-
 			}
 		} # query6
 	} # pnum != ''

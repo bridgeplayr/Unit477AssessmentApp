@@ -1,0 +1,12 @@
+# id, select_type, table, partitions, type, possible_keys, key, key_len, ref, rows, filtered, Extra
+'1', 'PRIMARY', 'h', NULL, 'ALL', 'idx_handsdd_game_club_board,idx_handsdd_game', NULL, NULL, NULL, '156299', '100.00', 'Using where; Using temporary; Using filesort'
+'1', 'PRIMARY', '<derived3>', NULL, 'ref', '<auto_key0>', '<auto_key0>', '175', 'db4krxl4bpud17.h.GameId,db4krxl4bpud17.h.club,db4krxl4bpud17.h.board_id', '10', '100.00', 'Using where'
+'3', 'DERIVED', '<derived6>', NULL, 'system', NULL, NULL, NULL, NULL, '1', '100.00', NULL
+'3', 'DERIVED', '<derived5>', NULL, 'ALL', NULL, NULL, NULL, NULL, '5338', '100.00', 'Using where'
+'3', 'DERIVED', 'r', NULL, 'ref', 'idx_results_game,idx_results_game_club_board', 'idx_results_game', '173', 'mg.GameId,mg.club', '144', '100.00', 'Using index condition; Using where'
+'7', 'SUBQUERY', '<derived6>', NULL, 'system', NULL, NULL, NULL, NULL, '1', '100.00', NULL
+'5', 'DERIVED', '<derived6>', NULL, 'system', NULL, NULL, NULL, NULL, '1', '100.00', 'Using temporary'
+'5', 'DERIVED', 'e', NULL, 'range', 'idx_events_game,idx_events_GameId', 'idx_events_game', '33', NULL, '395', '100.00', 'Using where; Using index'
+'5', 'DERIVED', 'p', NULL, 'ref', 'idx_players_game', 'idx_players_game', '132', 'db4krxl4bpud17.e.GameId,db4krxl4bpud17.e.club', '13', '100.00', 'Using where'
+'6', 'DERIVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'No tables used'
+

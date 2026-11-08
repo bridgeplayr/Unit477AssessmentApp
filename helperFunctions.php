@@ -2869,7 +2869,7 @@ function make_spreadsheet($conn, $pnum, $gmqualifier, $logfile) {
 	$games   = [];
 	// get HCP for me + pard
 	timer_start($timers, 'spreadsheet HCP-query');
-	$games = get_HCP_by_board($conn, $pnum, $gmqualifier);
+	$games = get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile);
 	timer_stop(
     $timers,
     'spreadsheet HCP-query',
@@ -4631,83 +4631,173 @@ function create_Trend_chart (
 #
 ##################################################################################
 
-function get_HCP_by_board($conn, $pnum, $gmqualifier) {
+function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 	$games = [] ;
-
-	$HCP_Hand_sql =
-"
-WITH
-
-me AS (
-    SELECT $pnum AS me
-),
-my_game_ids AS (
-    SELECT DISTINCT p.GameId, p.club
-    FROM events e
-    CROSS JOIN me
-    JOIN players p
-      ON p.GameId = e.GameId
-     AND p.club   = e.club
-    WHERE e.$gmqualifier
-      AND me.me IN (
-		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
-	  )
-),
-seats AS (
-	SELECT r.GameId, r.club, r.board_id, r.npnum, r.spnum, r.epnum, r.wpnum 
-    FROM my_game_ids mg
-    JOIN results r
-	  ON mg.GameId = r.GameId
-     AND mg.club   = r.club
-    WHERE (SELECT me FROM me) IN (r.npnum, r.spnum, r.epnum, r.wpnum)
-),
-my_seat AS (
-    SELECT 
-        s.GameId,
-        s.club,
-        s.board_id,
-        CASE 
-            WHEN s.npnum = me.me THEN 'N'
-            WHEN s.spnum = me.me THEN 'S'
-            WHEN s.epnum = me.me THEN 'E'
-            WHEN s.wpnum = me.me THEN 'W'
-				END AS myseat,
-        CASE 
-            WHEN s.npnum = me.me THEN 'S'
-            WHEN s.spnum = me.me THEN 'N'
-            WHEN s.epnum = me.me THEN 'W'
-            WHEN s.wpnum = me.me THEN 'E'
-				END AS pardseat
-
-    FROM seats s
-    CROSS JOIN me
-),
-hands AS (
-    SELECT 
-        ms.GameId,
-        ms.club,
-        ms.board_id,
-        ms.myseat, ms.pardseat,
-        h.deal
-    FROM my_seat ms
-    JOIN handsdd h
-      ON h.GameId   = ms.GameId
-     AND h.club     = ms.club
-     AND h.board_id = ms.board_id
-)
-SELECT  *
-FROM hands
-ORDER BY GameId, board_id;
-";
 
   // Check connection
   if (!$conn) {
     die("Connection failed: " . mysqli_connect_error());
   }
 
+	/*
+	 * Build a physical temporary table containing only the games
+	 * selected for this player and date-range/game qualifier.
+	 *
+	 * This replaces the my_game_ids CTE in the HCP query.
+	 *
+	 * All statements must use the same mysqli connection because
+	 * a temporary table belongs to the current database session.
+	 */
+
+	$tmp_drop_sql = "
+			DROP TEMPORARY TABLE IF EXISTS tmp_my_game_ids
+	";
+
+	if (!mysqli_query($conn, $tmp_drop_sql)) {
+			error_log(
+					"SQL ERROR dropping tmp_my_game_ids: " .
+					mysqli_error($conn)
+			);
+			return [];
+	}
+
+
+	$t_tmp0 = hrtime(true);
+
+	$tmp_create_sql = "
+			CREATE TEMPORARY TABLE tmp_my_game_ids AS
+			SELECT DISTINCT
+					p.GameId,
+					p.club
+			FROM events e
+			JOIN players p
+				ON p.GameId = e.GameId
+			 AND p.club   = e.club
+			WHERE e.$gmqualifier
+          AND '$pnum' IN (
+						p.pnum1,
+						p.pnum2,
+						p.pnum3,
+						p.pnum4,
+						p.pnum5,
+						p.pnum6
+				)
+	";
+
+	if (!mysqli_query($conn, $tmp_create_sql)) {
+			error_log(
+					"SQL ERROR creating tmp_my_game_ids: " .
+					mysqli_error($conn)
+			);
+			error_log("SQL QUERY: " . $tmp_create_sql);
+			return [];
+	}
+
+
+	/*
+	 * DISTINCT guarantees one row per GameId/club combination,
+	 * so that combination can be the temporary table's primary key.
+	 *
+	 * The primary key gives MySQL an indexed route between the
+	 * selected games and results/handsdd.
+	 */
+
+	$tmp_index_sql = "
+			ALTER TABLE tmp_my_game_ids
+			ADD PRIMARY KEY (GameId, club)
+	";
+
+	if (!mysqli_query($conn, $tmp_index_sql)) {
+			error_log(
+					"SQL ERROR indexing tmp_my_game_ids: " .
+					mysqli_error($conn)
+			);
+			return [];
+	}
+
+	$t_tmp1 = hrtime(true);
+
+	$tmp_count_result = mysqli_query(
+			$conn,
+			"SELECT COUNT(*) AS game_count FROM tmp_my_game_ids"
+	);
+
+	$tmp_game_count = 0;
+
+	if ($tmp_count_result) {
+			$tmp_count_row = mysqli_fetch_assoc($tmp_count_result);
+			$tmp_game_count = (int) $tmp_count_row['game_count'];
+	}
+
+	fwrite(
+			$logfile,
+			sprintf(
+					"\t%.6f s to build tmp_my_game_ids; games: %d\n",
+        ($t_tmp1 - $t_tmp0) / 1e9,
+        $tmp_game_count
+    )
+	);
+
+	$HCP_Hand_sql = "
+    SELECT STRAIGHT_JOIN
+        r.GameId,
+        r.club,
+        r.board_id,
+
+        CASE
+            WHEN r.npnum = '7889224' THEN 'N'
+            WHEN r.spnum = '7889224' THEN 'S'
+            WHEN r.epnum = '7889224' THEN 'E'
+            WHEN r.wpnum = '7889224' THEN 'W'
+        END AS myseat,
+
+        CASE
+            WHEN r.npnum = '7889224' THEN 'S'
+            WHEN r.spnum = '7889224' THEN 'N'
+            WHEN r.epnum = '7889224' THEN 'W'
+            WHEN r.wpnum = '7889224' THEN 'E'
+        END AS pardseat,
+
+        h.deal
+
+    FROM tmp_my_game_ids mg
+
+    JOIN results r
+      ON r.GameId = mg.GameId
+     AND r.club   = mg.club
+
+    JOIN handsdd h 
+      ON h.GameId   = r.GameId
+     AND h.club     = r.club
+     AND h.board_id = r.board_id
+
+    WHERE '7889224' IN (
+        r.npnum,
+        r.spnum,
+        r.epnum,
+        r.wpnum
+    )
+
+    ORDER BY
+        r.GameId,
+        r.board_id
+";
+
+	$t0 = hrtime(true);
+
 	// each row is a $board_id from a $game at a $club.
 	// 'me' sits in $seat, holding $deal
 	$deal_result = mysqli_query($conn, $HCP_Hand_sql); 
+
+	$t1 = hrtime(true);
+
+	fwrite(
+    $logfile,
+    sprintf(
+        "\t%.6f s for HCP SQL query\n",
+        ($t1 - $t0) / 1e9
+    )
+	);
 
 	if (!$deal_result) {
     error_log("SQL ERROR: " . mysqli_error($conn));
@@ -4729,6 +4819,7 @@ ORDER BY GameId, board_id;
 		'J' => 1
 	];
 
+	$t2 = hrtime(true);
 #   GameId,                        club, board_id, myseat, pardseat, 		 deal
 #'260105AA', 'Albany Duplicate Bridge C',     '5',    'E',      'W', 'W:K...3'
   while ($r = mysqli_fetch_assoc($deal_result)) {
@@ -4798,6 +4889,15 @@ ORDER BY GameId, board_id;
 			'pardhcp'  => $pardhcpForThisHand
 		];
 	}
+
+	$t3 = hrtime(true);
+
+	error_log(sprintf(
+    "HCP SQL: %.6f s; fetch/calc: %.6f s; rows: %d",
+    ($t1 - $t0) / 1e9,
+    ($t3 - $t2) / 1e9,
+    mysqli_num_rows($deal_result)
+	));
 
 	return $games;
 
