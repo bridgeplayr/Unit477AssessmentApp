@@ -1312,81 +1312,105 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				$html .= "<tbody>";
 
 				$mysumHCP = $pardsumHCP = $sumHCP = $sumBdsPlayed = 0; // declare & initialize
+				$gamesWithHands = 0;
 
-				foreach ($games as $gmid => $game) {
-					$boards = $game['boards'];
-				
-					$mytotalHCP 	= array_sum(array_column($games[$gmid]['boards'], 'myhcp'));
-					$pardtotalHCP = array_sum(array_column($games[$gmid]['boards'], 'pardhcp'));
-					if ($mytotalHCP == 0) continue; # skip games without hands (missing $deal's)
-					$bdsPlayed 		= count($boards);
-					$myavgHCP 		= $mytotalHCP 	/ $bdsPlayed;
-					$pardavgHCP 	= $pardtotalHCP / $bdsPlayed;
-					$myavgHCP 		= sprintf("%8.2f",$mytotalHCP / $bdsPlayed); 
-					$pardavgHCP 	= sprintf("%8.2f",$pardtotalHCP / $bdsPlayed); 
+				# foreach ($games as $gmid => $game) { # <-- old; replace with nested 'clubs' loop
+				foreach ($games as $gmid => $clubs) { # replace $game with $clubs
+					foreach ($clubs as $clubKey => $game) { # <-- new
+						$boards = $game['boards'];
+					
+						$mytotalHCP 	= array_sum(array_column($boards, 'myhcp'));
+						$pardtotalHCP = array_sum(array_column($boards, 'pardhcp'));
+						if ($mytotalHCP == 0) continue; # skip games without hands (missing $deal's)
 
-					// group by seat
-					$boardsBySeat = [];
-					foreach ($games[$gmid]['boards'] as $bd => $info) {
-						$boardsBySeat[$info['myseat']][] = $bd;
-					}
+						$gamesWithHands++;
 
-					// format seat summary
-					$seatSummary = [];
-					foreach ($boardsBySeat as $myseat => $bds) {
-							$seatSummary[] = "sitting $myseat: " . compressRanges($bds);
-					}
+						$bdsPlayed 	= count($boards);
+						$myavgHCP = sprintf(
+							"%8.2f",
+							$mytotalHCP / $bdsPlayed
+						);
 
-					$seatBdList = implode(' ', $seatSummary);
-					$club = $games[$gmid]['club'] ;
+						$pardavgHCP = sprintf(
+							"%8.2f",
+							$pardtotalHCP / $bdsPlayed
+						);
 
-					$html .= 
-						"<tr>
-							<td>$gmid</td>
-							<td>$club</td>";
-					if ($myavgHCP >= 12.0) {
-						$html .= "<td class='greathand'><strong>$myavgHCP</strong></td>";
-					} elseif ($myavgHCP >= 11.0) {
-						$html .= "<td class='goodhand'><strong>$myavgHCP</strong></td>";
-					} elseif ($myavgHCP <= 8.0) {
-						$html .= "<td class='badhand'><strong>$myavgHCP</strong></td>";
-					} elseif ($myavgHCP <= 9.0) {
-						$html .= "<td class='weakhand'><strong>$myavgHCP</strong></td>";
-					} else {
-						$html .= "<td>$myavgHCP</td>";
-					}
-					if ($pardavgHCP >= 12.0) {
-						$html .= "<td class='greathand'><strong>$pardavgHCP</strong></td>";
-					} elseif ($pardavgHCP >= 11.0) {
-						$html .= "<td class='goodhand'><strong>$pardavgHCP</strong></td>";
-					} elseif ($pardavgHCP <= 8.0) {
-						$html .= "<td class='badhand'><strong>$pardavgHCP</strong></td>";
-					} elseif ($pardavgHCP <= 9.0) {
-						$html .= "<td class='weakhand'><strong>$pardavgHCP</strong></td>";
-					} else {
+						// group by seat
+						$boardsBySeat = [];
+						foreach ($boards as $bd => $info) {
+							$boardsBySeat[$info['myseat']][] = $bd;
+						}
+
+						// format seat summary
+						$seatSummary = [];
+						foreach ($boardsBySeat as $myseat => $bds) {
+								$seatSummary[] = "sitting $myseat: " . compressRanges($bds);
+						}
+
+						$seatBdList = implode(' ', $seatSummary);
+						$club = $game['club'] ;
+
+						$html .= 
+							"<tr>
+								<td>$gmid</td>
+								<td>$club</td>";
+						if ($myavgHCP >= 12.0) {
+							$html .= "<td class='greathand'><strong>$myavgHCP</strong></td>";
+						} elseif ($myavgHCP >= 11.0) {
+							$html .= "<td class='goodhand'><strong>$myavgHCP</strong></td>";
+						} elseif ($myavgHCP <= 8.0) {
+							$html .= "<td class='badhand'><strong>$myavgHCP</strong></td>";
+						} elseif ($myavgHCP <= 9.0) {
+							$html .= "<td class='weakhand'><strong>$myavgHCP</strong></td>";
+						} else {
+							$html .= "<td>$myavgHCP</td>";
+						}
+						if ($pardavgHCP >= 12.0) {
+							$html .= "<td class='greathand'><strong>$pardavgHCP</strong></td>";
+						} elseif ($pardavgHCP >= 11.0) {
+							$html .= "<td class='goodhand'><strong>$pardavgHCP</strong></td>";
+						} elseif ($pardavgHCP <= 8.0) {
+							$html .= "<td class='badhand'><strong>$pardavgHCP</strong></td>";
+						} elseif ($pardavgHCP <= 9.0) {
+							$html .= "<td class='weakhand'><strong>$pardavgHCP</strong></td>";
+						} else {
 						$html .= "<td>$pardavgHCP</td>";
-					}
-					$html .= 
-							"<td>$bdsPlayed</td>
-							<td style='text-align:left;'>$seatBdList</td>
-						</tr>";
+						}
+						$html .= 
+								"<td>$bdsPlayed</td>
+								<td style='text-align:left;'>$seatBdList</td>
+							</tr>";
 
-					// accumulate total HCP for each game, displayed in footer summary
-					$mysumHCP       	+= $mytotalHCP;
-					$pardsumHCP       += $pardtotalHCP;
-					$sumBdsPlayed 		+= $bdsPlayed;
-				} // foreach games
+						// accumulate total HCP for each game, displayed in footer summary
+						$mysumHCP       	+= $mytotalHCP;
+						$pardsumHCP       += $pardtotalHCP;
+						$sumBdsPlayed 		+= $bdsPlayed;
+
+					} // foreach club sharing this GameId
+				} // foreach GameId
+
+				if ($gamesWithHands == 0) {
+					$html .= "<tr>
+											<td colspan='6'>
+													No hand records found for the selected games.
+											</td>
+										</tr>";
+				}
 
 				$html .= "</tbody>";
 
-				$gmsPlayed 		 = count($games[$gmid]);
-				$myavgavgHCP 	 = sprintf("%8.2f", $mysumHCP 	/ $sumBdsPlayed) ;
-				$pardavgavgHCP = sprintf("%8.2f", $pardsumHCP / $sumBdsPlayed) ;
+				# $gmsPlayed 		 = count($games[$gmid]); # <-- not used, and incorrect anyway
 
-				$html .= "<tfoot>
-					<tr>
-						<th></th>
-						<th></th>";
+				if ($sumBdsPlayed > 0) {
+
+					$myavgavgHCP 	 = sprintf("%8.2f", $mysumHCP 	/ $sumBdsPlayed) ;
+					$pardavgavgHCP = sprintf("%8.2f", $pardsumHCP / $sumBdsPlayed) ;
+
+					$html .= "<tfoot>
+						<tr>
+							<th></th>
+							<th></th>";
 					if ($myavgavgHCP >= 10.10) {
 						$html .= "<th class='AboveAvghand'><strong>Period average = $myavgavgHCP</strong></th>";
 					} elseif ($myavgavgHCP <= 9.90) {
@@ -1401,15 +1425,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 					} else {
 						$html .= "<th>Period average = $pardavgavgHCP</th>";
 					}
-				$html .= 
-					 "<th></th>
-						<th></th>
-					</tr>";
-				$html .= "</tfoot>";
-				$html .= "</table>";
-				$html .= "</div>";      // table-container
-				
-				$html .= "<p>N.B. Some Howell movements require players to change direction from NS to EW.  These calculations assume players from each pair occupy specifically N & E seats, and S & W seats.  If you do not adhere to this guideline, then the ave HCP values are incorrect.<br></p>";
+					$html .= 
+						 "<th></th>
+							<th></th>
+						</tr>";
+					$html .= "</tfoot>";
+					$html .= "</table>";
+					$html .= "</div>";      // table-container
+					
+					$html .= "<p>N.B. Some Howell movements require players to change direction from NS to EW.  These calculations assume players from each pair occupy specifically N & E seats, and S & W seats.  If you do not adhere to this guideline, then the ave HCP values are incorrect.<br></p>";
+				}
 
 
 				$results['HCP'] = $html ;

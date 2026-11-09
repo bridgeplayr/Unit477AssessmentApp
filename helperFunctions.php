@@ -1185,12 +1185,10 @@ function get_history($conn, $pnum, $gmqualifier) {
 #
 #
 function get_all_partners($conn, $pnum, $gmqualifier) {
-	$partner_sql =
+
+		$partner_sql =
 "
 WITH
-me AS (
-    SELECT $pnum AS me
-),
 
 my_game_ids AS (
     SELECT DISTINCT p.GameId, p.club
@@ -1198,9 +1196,8 @@ my_game_ids AS (
     JOIN players p
       ON p.GameId = e.GameId
      AND p.club   = e.club
-	CROSS JOIN me
     WHERE e.$gmqualifier
-      AND me.me IN (
+      AND '$pnum' IN (
             p.pnum1, p.pnum2, p.pnum3,
             p.pnum4, p.pnum5, p.pnum6
       )
@@ -1224,100 +1221,98 @@ games AS (
      AND mg.club   = e.club
 ),
 
-indy_games AS (
-    SELECT DISTINCT GameId
-    FROM games 
-    CROSS JOIN me
-    WHERE gametype = 'indy'
-      AND me.me IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6)
-),
-
-team_games AS (
-    SELECT DISTINCT GameId
-    FROM games g 
-    CROSS JOIN me
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
-      AND me.me IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
-),
-
 my_games AS (
     SELECT g.*
     FROM games g
-    CROSS JOIN me
-    WHERE me.me IN (
+    WHERE '$pnum' IN (
         g.pnum1, g.pnum2, g.pnum3,
         g.pnum4, g.pnum5, g.pnum6
     )
 ),
 
+indy_games AS (
+    SELECT DISTINCT GameId, club
+--  FROM games 
+    FROM my_games 
+    WHERE gametype = 'indy'
+--    AND '$pnum' IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6)
+),
+
+team_games AS (
+    SELECT DISTINCT GameId, club
+--  FROM games 
+    FROM my_games 
+    WHERE g.gametype = 'teams'
+      AND g.movement = 'Swiss teams'
+--    AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+),
+
 my_partners AS (
     SELECT
-        CASE WHEN me.me = g.pnum1 THEN g.pnum2 ELSE g.pnum1 END AS pardnum,
-        CASE WHEN me.me = g.pnum1 THEN g.player2 ELSE g.player1 END AS pardName,
+        CASE WHEN '$pnum' = g.pnum1 THEN g.pnum2 ELSE g.pnum1 END AS pardnum,
+        CASE WHEN '$pnum' = g.pnum1 THEN g.player2 ELSE g.player1 END AS pardName,
         1 AS partner
     FROM my_games g
-    CROSS JOIN me
     WHERE
         (g.gametype = 'pairs'
          OR (g.gametype = 'teams' AND g.movement = 'HomeStyle P'))
-      AND me.me IN (g.pnum1, g.pnum2)
+      AND '$pnum' IN (g.pnum1, g.pnum2)
 ),
 
 my_teammates AS (
 
     SELECT g.pnum1 AS pardnum, g.player1 AS pardName, 1 AS teammate
-    FROM my_games g CROSS JOIN me
+    FROM my_games g 
     WHERE g.gametype = 'teams'
       AND g.movement = 'Swiss teams'
-      AND me.me IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
       AND g.pnum1 REGEXP '^[0-9]+$'
-      AND g.pnum1 <> me.me
+      AND g.pnum1 <> '$pnum'
 
     UNION ALL
     SELECT g.pnum2, g.player2, 1
-    FROM my_games g CROSS JOIN me
+    FROM my_games g 
     WHERE g.gametype = 'teams'
       AND g.movement = 'Swiss teams'
-      AND me.me IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
       AND g.pnum2 REGEXP '^[0-9]+$'
-      AND g.pnum2 <> me.me
+      AND g.pnum2 <> '$pnum'
 
     UNION ALL
     SELECT g.pnum3, g.player3, 1
-    FROM my_games g CROSS JOIN me
+    FROM my_games g 
     WHERE g.gametype = 'teams'
       AND g.movement = 'Swiss teams'
-      AND me.me IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
       AND g.pnum3 REGEXP '^[0-9]+$'
-      AND g.pnum3 <> me.me
+      AND g.pnum3 <> '$pnum'
 
     UNION ALL
     SELECT g.pnum4, g.player4, 1
-    FROM my_games g CROSS JOIN me
+    FROM my_games g 
     WHERE g.gametype = 'teams'
       AND g.movement = 'Swiss teams'
-      AND me.me IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
       AND g.pnum4 REGEXP '^[0-9]+$'
-      AND g.pnum4 <> me.me
+      AND g.pnum4 <> '$pnum'
 
     UNION ALL
     SELECT g.pnum5, g.player5, 1
-    FROM my_games g CROSS JOIN me
+    FROM my_games g 
     WHERE g.gametype = 'teams'
       AND g.movement = 'Swiss teams'
-      AND me.me IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
       AND g.pnum5 REGEXP '^[0-9]+$'
-      AND g.pnum5 <> me.me
+      AND g.pnum5 <> '$pnum'
 
     UNION ALL
     SELECT g.pnum6, g.player6, 1
-    FROM my_games g CROSS JOIN me
+    FROM my_games g 
     WHERE g.gametype = 'teams'
       AND g.movement = 'Swiss teams'
-      AND me.me IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
       AND g.pnum6 REGEXP '^[0-9]+$'
-      AND g.pnum6 <> me.me
+      AND g.pnum6 <> '$pnum'
 ),
 
 indy_partners AS (
@@ -1326,9 +1321,8 @@ indy_partners AS (
         g.player1 AS pardName,
         (SELECT COUNT(*) FROM indy_games) AS indy_game_count
     FROM games g  
-    CROSS JOIN me
     WHERE g.gametype = 'indy'
-      AND g.pnum1 <> me.me
+      AND g.pnum1 <> '$pnum'
 ),
 all_partners AS (
     SELECT pardnum, pardName, partner, 0 AS teammate, 0 AS indy
@@ -2838,18 +2832,18 @@ function make_spreadsheet($conn, $pnum, $gmqualifier, $logfile) {
   $dataArray = $SScol = $SSrow = array();
 	$timers = [];		// measure execution times
 
-//	struct for $games HCP calcs
-//		$games[$gmid] = [
-//   									'club'   => $club,
-//   									'boards' => [
-//       													$bd => [
-//           														 'myseat' 	=> $myseat,
-//           														 'pardseat' => $pardseat,
-//           														 'myhcp'  	=> $myhcpForThisHand,
-//           														 'pardhcp'  => $pardhcpForThisHand,
-//       																 ],
-//   															],
-//										];
+// struct for $games HCP calcs
+// $games[$gmid][$clubKey] = [
+//     'club'   => $club,
+//     'boards' => [
+//         $bd => [
+//             'myseat'  => $myseat,
+//             'pardseat' => $pardseat,
+//             'myhcp'    => $myhcpForThisHand,
+//             'pardhcp'  => $pardhcpForThisHand,
+//         ],
+//     ],
+// ];
 
 	$details = [];
 	// get pard's pair game details
@@ -2891,6 +2885,7 @@ function make_spreadsheet($conn, $pnum, $gmqualifier, $logfile) {
 		array_push ($SSrow, $datevaluestr); # first col is Excel DATEVALUE, followed by the SScols
 
 		$gmid = $r['GameId'] ;
+		$clubKey = $r['club'];       // exact DB club value; part of game identity
 		$yy =   substr($gmid, 0, 2) ;
 		$mm =   substr($gmid, 2, 2) ;
 		$dd =   substr($gmid, 4, 2) ;
@@ -2967,18 +2962,27 @@ function make_spreadsheet($conn, $pnum, $gmqualifier, $logfile) {
 
 		// aveHCP from $games struct
 		// skip if this game has no deals for HCP calc
-		if (isset($games[$gmid])) {
-			$boards    = $games[$gmid]['boards'];
 
-			$mytotalHCP  	 = array_sum(array_column($games[$gmid]['boards'], 'myhcp'));
-			$pardtotalHCP  = array_sum(array_column($games[$gmid]['boards'], 'pardhcp'));
+		#if (isset($games[$gmid])) { # <-- old, no club key
+		# $boards    = $games[$gmid]['boards']; # <-- old, no club key
+
+		if (isset($games[$gmid][$clubKey])) { # <-- new, includes $clubKey
+			$boards = $games[$gmid][$clubKey]['boards']; # <-- new, includes $clubKey
+
+			$mytotalHCP  	 = array_sum(array_column($boards, 'myhcp'));
+			$pardtotalHCP  = array_sum(array_column($boards, 'pardhcp'));
 			$bdsPlayed 		 = count($boards);
-			$myavgHCP 	 	 = $mytotalHCP / $bdsPlayed;
-			$pardavgHCP 	 = $pardtotalHCP / $bdsPlayed;
-			// DO NOT USE sprintf to insert values into Excel - Excel considers it text
-			// $avgHCP 	 = sprintf("%8.2f",$totalHCP / $bdsPlayed);
-			array_push ($SSrow, $myavgHCP) ; 
-			array_push ($SSrow, $pardavgHCP) ; 
+			if ($bdsPlayed > 0) {
+        $myavgHCP   = $mytotalHCP / $bdsPlayed;
+        $pardavgHCP = $pardtotalHCP / $bdsPlayed;
+
+        // DO NOT USE sprintf to insert values into Excel - Excel considers it text
+        array_push($SSrow, $myavgHCP);
+        array_push($SSrow, $pardavgHCP);
+			} else {
+				array_push($SSrow, null);
+				array_push($SSrow, null);
+			}
 		} else {
 			array_push ($SSrow, null) ; 
 			array_push ($SSrow, null) ; 
@@ -4650,15 +4654,15 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 	 */
 
 	$tmp_drop_sql = "
-			DROP TEMPORARY TABLE IF EXISTS tmp_my_game_ids
+		DROP TEMPORARY TABLE IF EXISTS tmp_my_game_ids
 	";
 
 	if (!mysqli_query($conn, $tmp_drop_sql)) {
-			error_log(
-					"SQL ERROR dropping tmp_my_game_ids: " .
-					mysqli_error($conn)
-			);
-			return [];
+		error_log(
+			"SQL ERROR dropping tmp_my_game_ids: " .
+			mysqli_error($conn)
+		);
+		return [];
 	}
 
 
@@ -4667,30 +4671,30 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 	$tmp_create_sql = "
 			CREATE TEMPORARY TABLE tmp_my_game_ids AS
 			SELECT DISTINCT
-					p.GameId,
-					p.club
+				p.GameId,
+				p.club
 			FROM events e
 			JOIN players p
 				ON p.GameId = e.GameId
 			 AND p.club   = e.club
 			WHERE e.$gmqualifier
-          AND '$pnum' IN (
-						p.pnum1,
-						p.pnum2,
-						p.pnum3,
-						p.pnum4,
-						p.pnum5,
-						p.pnum6
+        AND '$pnum' IN (
+					p.pnum1,
+					p.pnum2,
+					p.pnum3,
+					p.pnum4,
+					p.pnum5,
+					p.pnum6
 				)
 	";
 
 	if (!mysqli_query($conn, $tmp_create_sql)) {
-			error_log(
-					"SQL ERROR creating tmp_my_game_ids: " .
-					mysqli_error($conn)
-			);
-			error_log("SQL QUERY: " . $tmp_create_sql);
-			return [];
+		error_log(
+			"SQL ERROR creating tmp_my_game_ids: " .
+			mysqli_error($conn)
+		);
+		error_log("SQL QUERY: " . $tmp_create_sql);
+		return [];
 	}
 
 
@@ -4703,38 +4707,38 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 	 */
 
 	$tmp_index_sql = "
-			ALTER TABLE tmp_my_game_ids
-			ADD PRIMARY KEY (GameId, club)
+		ALTER TABLE tmp_my_game_ids
+		ADD PRIMARY KEY (GameId, club)
 	";
 
 	if (!mysqli_query($conn, $tmp_index_sql)) {
-			error_log(
-					"SQL ERROR indexing tmp_my_game_ids: " .
-					mysqli_error($conn)
-			);
-			return [];
+		error_log(
+			"SQL ERROR indexing tmp_my_game_ids: " .
+			mysqli_error($conn)
+		);
+		return [];
 	}
 
 	$t_tmp1 = hrtime(true);
 
 	$tmp_count_result = mysqli_query(
-			$conn,
-			"SELECT COUNT(*) AS game_count FROM tmp_my_game_ids"
+		$conn,
+		"SELECT COUNT(*) AS game_count FROM tmp_my_game_ids"
 	);
 
 	$tmp_game_count = 0;
 
 	if ($tmp_count_result) {
-			$tmp_count_row = mysqli_fetch_assoc($tmp_count_result);
-			$tmp_game_count = (int) $tmp_count_row['game_count'];
+		$tmp_count_row = mysqli_fetch_assoc($tmp_count_result);
+		$tmp_game_count = (int) $tmp_count_row['game_count'];
 	}
 
 	fwrite(
-			$logfile,
-			sprintf(
-					"\t%.6f s to build tmp_my_game_ids; games: %d\n",
-        ($t_tmp1 - $t_tmp0) / 1e9,
-        $tmp_game_count
+		$logfile,
+		sprintf(
+			"\t%.6f s to build tmp_my_game_ids; games: %d\n",
+       ($t_tmp1 - $t_tmp0) / 1e9,
+       $tmp_game_count
     )
 	);
 
@@ -4745,17 +4749,17 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
         r.board_id,
 
         CASE
-            WHEN r.npnum = '7889224' THEN 'N'
-            WHEN r.spnum = '7889224' THEN 'S'
-            WHEN r.epnum = '7889224' THEN 'E'
-            WHEN r.wpnum = '7889224' THEN 'W'
+            WHEN r.npnum = '$pnum' THEN 'N'
+            WHEN r.spnum = '$pnum' THEN 'S'
+            WHEN r.epnum = '$pnum' THEN 'E'
+            WHEN r.wpnum = '$pnum' THEN 'W'
         END AS myseat,
 
         CASE
-            WHEN r.npnum = '7889224' THEN 'S'
-            WHEN r.spnum = '7889224' THEN 'N'
-            WHEN r.epnum = '7889224' THEN 'W'
-            WHEN r.wpnum = '7889224' THEN 'E'
+            WHEN r.npnum = '$pnum' THEN 'S'
+            WHEN r.spnum = '$pnum' THEN 'N'
+            WHEN r.epnum = '$pnum' THEN 'W'
+            WHEN r.wpnum = '$pnum' THEN 'E'
         END AS pardseat,
 
         h.deal
@@ -4771,7 +4775,7 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
      AND h.club     = r.club
      AND h.board_id = r.board_id
 
-    WHERE '7889224' IN (
+    WHERE '$pnum' IN (
         r.npnum,
         r.spnum,
         r.epnum,
@@ -4794,8 +4798,8 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 	fwrite(
     $logfile,
     sprintf(
-        "\t%.6f s for HCP SQL query\n",
-        ($t1 - $t0) / 1e9
+      "\t%.6f s for HCP SQL query\n",
+      ($t1 - $t0) / 1e9
     )
 	);
 
@@ -4820,11 +4824,16 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 	];
 
 	$t2 = hrtime(true);
+
 #   GameId,                        club, board_id, myseat, pardseat, 		 deal
 #'260105AA', 'Albany Duplicate Bridge C',     '5',    'E',      'W', 'W:K...3'
   while ($r = mysqli_fetch_assoc($deal_result)) {
-		if ($r['deal'] == '') continue;# skip boards with blank $deal
+		if ($r['deal'] == '') { 
+			continue;	# skip boards with blank $deal
+		}
+
 		$gmid 		= $r['GameId'];
+		$clubKey  = $r['club'];  // exact database value; part of the game identity
 		$club 		= $r['club'];
 		$bd   		= $r['board_id'];
 		$myseat 	= $r['myseat'];
@@ -4832,17 +4841,17 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 		$deal 		= $r['deal'];
 		
 //	create new struct for HCP calcs
-//		$games[$gmid] = [
-//   		'club'      => $club,
-//   		'boards'    => [
-//       	$bd => [
-//           'myseat' 	=> $myseat,
-//           'pardseat' => $pardseat,
-//           'myhcp'  	=> $myhcpForThisHand,
-//           'pardhcp'	=> $pardhcpForThisHand
-//       	],
-//   		]
-//		];
+//	$games[$gmid][$clubkey] = [  <--- $clubkey is new
+//  	'club'      => $club,
+//   	'boards'    => [
+//     	$bd => [
+//         'myseat' 	=> $myseat,
+//         'pardseat' => $pardseat,
+//         'myhcp'  	=> $myhcpForThisHand,
+//         'pardhcp'	=> $pardhcpForThisHand
+//     	],
+//   	]
+//	];
 
 		if (preg_match ("/Corvallis Dupl/i", $club)) {
 			$club = 'CDBC';
@@ -4852,26 +4861,28 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 			$club = 'NewDeal Online';
 		} elseif (preg_match ("/Corvallis DBC/i", $club)) {
 			$club = 'Corv OnLine';
-		} elseif (preg_match ("/valley/i", $club) or
-							preg_match ("/HOV/i", $club) or 
+		} elseif (preg_match ("/valley/i", $club) ||
+							preg_match ("/HOV/i", $club) || 
 							preg_match ("/477/", $club)) {
 			$club = 'HOV'; }
 
 		$hands = explode (' ', $deal) ;
 		// Assume always $west = $hands[0] ; 
 		// remove extra "W:" prefix from west hand 
-		$hands[0] = ltrim($hands[0],"W:") ;
+		if (str_starts_with($hands[0], 'W:')) {
+    	$hands[0] = substr($hands[0], 2);
+		}
 
 		$myHand 	= $hands[$seatIndex[$myseat]];
 		$pardHand = $hands[$seatIndex[$pardseat]];
 
 		# guard against Yarborough
-		$games[$gmid]['boards'][$bd] = [
-			'myseat' 	 => $myseat,
-			'pardseat' => $pardseat,
-			'myhcp' 	 => 0,
-			'pardhcp'  => 0
-		] ;
+		# $games[$gmid]['boards'][$bd] = [
+		# 	'myseat' 	 => $myseat,
+		# 	'pardseat' => $pardseat,
+		# 	'myhcp' 	 => 0,
+		# 	'pardhcp'  => 0
+		# ]#  ;
 		$myhcpForThisHand = 0; // avoid accumulating
 		$pardhcpForThisHand = 0; // avoid accumulating
 
@@ -4881,8 +4892,13 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 		foreach (str_split($pardHand) as $card) {
 			$pardhcpForThisHand += $hcpValues[$card] ?? 0;
 		}
-		$games[$gmid]['club'] = $club;
-		$games[$gmid]['boards'][$bd] = [
+		# $games[$gmid]['club'] = $club;
+		$games[$gmid][$clubKey]['club'] = $club; # new
+		
+		# Initializing both values to zero here handles a Yarborough
+		# naturally because no honor cards will increase the totals.
+		# $games[$gmid]['boards'][$bd] = [
+		$games[$gmid][$clubKey]['boards'][$bd] = [
 			'myseat' 	 => $myseat,
 			'pardseat' => $pardseat,
 			'myhcp'  	 => $myhcpForThisHand, 
