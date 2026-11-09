@@ -1642,19 +1642,18 @@ pair_games AS (
     SELECT
         mm.*,
         CASE 
-            WHEN me.me = mm.pnum1 THEN mm.pnum2
+            WHEN '$pnum' = mm.pnum1 THEN mm.pnum2
             ELSE mm.pnum1
         END AS pardnum,
 
         
         CASE 
-            WHEN me.me = mm.pnum1 THEN mm.player2
+            WHEN '$pnum' = mm.pnum1 THEN mm.player2
             ELSE mm.player1
         END AS pardName
 
     FROM min_max mm
-    CROSS JOIN me
-    WHERE me.me IN (mm.pnum1, mm.pnum2)
+    WHERE '$pnum' IN (mm.pnum1, mm.pnum2)
       AND NULLIF(mm.pnum3, '') IS NULL
 			AND mm.gametype = 'pairs'
       -- AND mm.movement NOT LIKE 'Swiss%'
@@ -1706,17 +1705,17 @@ results_enriched AS (
 			r.ewmtchpts,
 
     CASE
-			WHEN r.npnum = me.me THEN 'N'
-			WHEN r.spnum = me.me THEN 'S'
-			WHEN r.epnum = me.me THEN 'E'
-			WHEN r.wpnum = me.me THEN 'W'
+			WHEN r.npnum = '$pnum' THEN 'N'
+			WHEN r.spnum = '$pnum' THEN 'S'
+			WHEN r.epnum = '$pnum' THEN 'E'
+			WHEN r.wpnum = '$pnum' THEN 'W'
     END AS my_seat,
 
     CASE
-			WHEN r.npnum = me.me THEN 'S'
-			WHEN r.spnum = me.me THEN 'N'
-			WHEN r.epnum = me.me THEN 'W'
-			WHEN r.wpnum = me.me THEN 'E'
+			WHEN r.npnum = '$pnum' THEN 'S'
+			WHEN r.spnum = '$pnum' THEN 'N'
+			WHEN r.epnum = '$pnum' THEN 'W'
+			WHEN r.wpnum = '$pnum' THEN 'E'
     END AS pard_seat,
 
     CASE
@@ -1725,20 +1724,20 @@ results_enriched AS (
 				-- me declaring
       	WHEN r.Declarer =
           CASE
-            WHEN r.npnum = me.me THEN 'N'
-            WHEN r.spnum = me.me THEN 'S'
-            WHEN r.epnum = me.me THEN 'E'
-            WHEN r.wpnum = me.me THEN 'W'
+            WHEN r.npnum = '$pnum' THEN 'N'
+            WHEN r.spnum = '$pnum' THEN 'S'
+            WHEN r.epnum = '$pnum' THEN 'E'
+            WHEN r.wpnum = '$pnum' THEN 'W'
           END
         	THEN 'me_declr'
 
 				-- pard declaring
         WHEN r.Declarer =
           CASE
-            WHEN r.npnum = me.me THEN 'S'
-            WHEN r.spnum = me.me THEN 'N'
-            WHEN r.epnum = me.me THEN 'W'
-            WHEN r.wpnum = me.me THEN 'E'
+            WHEN r.npnum = '$pnum' THEN 'S'
+            WHEN r.spnum = '$pnum' THEN 'N'
+            WHEN r.epnum = '$pnum' THEN 'W'
+            WHEN r.wpnum = '$pnum' THEN 'E'
           END
         	THEN 'pard_declr'
 
@@ -1746,20 +1745,20 @@ results_enriched AS (
 			-- me leading
         WHEN r.Declarer =
           CASE
-            WHEN r.wpnum = me.me THEN 'S'
-            WHEN r.epnum = me.me THEN 'N'
-            WHEN r.npnum = me.me THEN 'W'
-            WHEN r.spnum = me.me THEN 'E'
+            WHEN r.wpnum = '$pnum' THEN 'S'
+            WHEN r.epnum = '$pnum' THEN 'N'
+            WHEN r.npnum = '$pnum' THEN 'W'
+            WHEN r.spnum = '$pnum' THEN 'E'
           END
         	THEN 'me_leading'
 
 			-- pard leading
         WHEN r.Declarer =
           CASE
-            WHEN r.epnum = me.me THEN 'S'
-            WHEN r.wpnum = me.me THEN 'N'
-            WHEN r.spnum = me.me THEN 'W'
-            WHEN r.npnum = me.me THEN 'E'
+            WHEN r.epnum = '$pnum' THEN 'S'
+            WHEN r.wpnum = '$pnum' THEN 'N'
+            WHEN r.spnum = '$pnum' THEN 'W'
+            WHEN r.npnum = '$pnum' THEN 'E'
           END
         	THEN 'pard_leading'
 -- No ELSE needed: all non-PASS cases are covered by the 4 WHEN blocks
@@ -1767,11 +1766,10 @@ results_enriched AS (
 
     FROM results r
 
-    CROSS JOIN me
     JOIN pair_games pg
       ON  pg.GameId = r.GameId
       AND pg.club   = r.club
-      AND me.me IN (r.npnum, r.spnum, r.epnum, r.wpnum)
+      AND '$pnum' IN (r.npnum, r.spnum, r.epnum, r.wpnum)
 
     LEFT JOIN events e
       ON e.GameId = pg.GameId
@@ -1910,11 +1908,10 @@ final AS (
         COUNT(*) AS boards_played
     
     FROM games_with_pair_results g
-    CROSS JOIN me
     LEFT JOIN min_max mm
       ON mm.GameId = g.GameId
      AND mm.club   = g.club
-     AND me.me  IN (mm.pnum1, mm.pnum2)
+     AND '$pnum'  IN (mm.pnum1, mm.pnum2)
      AND g.pardnum IN (mm.pnum1, mm.pnum2)
 
 
@@ -2022,18 +2019,14 @@ function get_partner_details($conn, $pnum, $gmqualifier) {
 
 	$pair_sql_hdr =
 "WITH
-me AS (
-    SELECT $pnum AS me
-),
 my_game_ids AS (
     SELECT p.GameId, p.club
     FROM events e
-    CROSS JOIN me
     JOIN players p
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND me.me IN (
+      AND '$pnum' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),"
@@ -2134,18 +2127,14 @@ function get_partners_summary($conn, $pnum, $gmqualifier) {
 
 	$pair_sql_hdr =
 "WITH
-me AS (
-    SELECT $pnum AS me
-),
 my_game_ids AS (
     SELECT p.GameId, p.club
     FROM events e
-    CROSS JOIN me
     JOIN players p
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND me.me IN (
+      AND '$pnum' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),"
@@ -2542,9 +2531,8 @@ team_games AS (
     SELECT mm.* 
     
     FROM min_max mm
-    CROSS JOIN me
     WHERE NULLIF(mm.pnum3, '') IS NOT NULL      -- team games only
-      AND me.me IN (                            -- my team only
+      AND '$pnum' IN (                            -- my team only
             mm.pnum1, mm.pnum2, mm.pnum3,
             mm.pnum4, mm.pnum5, mm.pnum6
       )
@@ -2591,8 +2579,7 @@ team_unnested AS (
 team_teammates_only AS (
     SELECT *
     FROM team_unnested tu
-    CROSS JOIN me
-    WHERE tu.teammate_pnum <> me.me
+    WHERE tu.teammate_pnum <> '$pnum'
 ),
 
 team_pivoted AS (
@@ -2652,18 +2639,14 @@ function get_teamgames($conn, $pnum, $gmqualifier) {
 "
 WITH
 
-me AS (
-    SELECT $pnum AS me
-),
 my_game_ids AS (
     SELECT DISTINCT p.GameId, p.club
     FROM events e
-    CROSS JOIN me
     JOIN players p
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND me.me IN (
+      AND '$pnum' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),
@@ -2741,18 +2724,14 @@ function get_teammates_summary($conn, $pnum, $gmqualifier) {
 "
 WITH
 
-me AS (
-    SELECT $pnum AS me
-),
 my_game_ids AS (
     SELECT DISTINCT p.GameId, p.club
     FROM events e
-    CROSS JOIN me
     JOIN players p
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND me.me IN (
+      AND '$pnum' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),
@@ -3388,19 +3367,15 @@ function get_spreadsheet_data ($conn, $pnum, $gmqualifier) {
 "
 WITH
 
-me AS (
-    SELECT $pnum AS me
-),
 
 my_game_ids AS (
     SELECT p.GameId, p.club
     FROM events e
-    CROSS JOIN me
     JOIN players p
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND me.me IN (
+      AND '$pnum' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),
@@ -3706,19 +3681,18 @@ pair_games AS (
     SELECT
         mm.*,
         CASE 
-            WHEN me.me = mm.pnum1 THEN mm.pnum2
+            WHEN '$pnum' = mm.pnum1 THEN mm.pnum2
             ELSE mm.pnum1
         END AS pardnum,
 
         -- Partner name
         CASE 
-            WHEN me.me = mm.pnum1 THEN mm.player2
+            WHEN '$pnum' = mm.pnum1 THEN mm.player2
             ELSE mm.player1
         END AS pardName
 
     FROM min_max mm
-    CROSS JOIN me
-    WHERE me.me IN (mm.pnum1, mm.pnum2, mm.pnum3, mm.pnum4, mm.pnum5, mm.pnum6)
+    WHERE '$pnum' IN (mm.pnum1, mm.pnum2, mm.pnum3, mm.pnum4, mm.pnum5, mm.pnum6)
       -- AND NULLIF(mm.pnum3, '') IS NULL
       -- AND mm.movement NOT LIKE 'Swiss%'
 ),
@@ -3753,18 +3727,18 @@ results_enriched AS (
 
         -- My seat
         CASE
-            WHEN r.npnum = me.me THEN 'N'
-            WHEN r.spnum = me.me THEN 'S'
-            WHEN r.epnum = me.me THEN 'E'
-            WHEN r.wpnum = me.me THEN 'W'
+            WHEN r.npnum = '$pnum' THEN 'N'
+            WHEN r.spnum = '$pnum' THEN 'S'
+            WHEN r.epnum = '$pnum' THEN 'E'
+            WHEN r.wpnum = '$pnum' THEN 'W'
         END AS my_seat,
 
         -- Partner seat
         CASE
-            WHEN r.npnum = me.me THEN 'S'
-            WHEN r.spnum = me.me THEN 'N'
-            WHEN r.epnum = me.me THEN 'W'
-            WHEN r.wpnum = me.me THEN 'E'
+            WHEN r.npnum = '$pnum' THEN 'S'
+            WHEN r.spnum = '$pnum' THEN 'N'
+            WHEN r.epnum = '$pnum' THEN 'W'
+            WHEN r.wpnum = '$pnum' THEN 'E'
         END AS pard_seat,
 
         -- Role
@@ -3772,49 +3746,48 @@ results_enriched AS (
             WHEN r.contractLevel = 'PASS' THEN 'passout'
             WHEN r.Declarer =
                 CASE
-                    WHEN r.npnum = me.me THEN 'N'
-                    WHEN r.spnum = me.me THEN 'S'
-                    WHEN r.epnum = me.me THEN 'E'
-                    WHEN r.wpnum = me.me THEN 'W'
+                    WHEN r.npnum = '$pnum' THEN 'N'
+                    WHEN r.spnum = '$pnum' THEN 'S'
+                    WHEN r.epnum = '$pnum' THEN 'E'
+                    WHEN r.wpnum = '$pnum' THEN 'W'
                 END
                 THEN 'me_declr'
             WHEN r.Declarer =
                 CASE
-                    WHEN r.npnum = me.me THEN 'S'
-                    WHEN r.spnum = me.me THEN 'N'
-                    WHEN r.epnum = me.me THEN 'W'
-                    WHEN r.wpnum = me.me THEN 'E'
+                    WHEN r.npnum = '$pnum' THEN 'S'
+                    WHEN r.spnum = '$pnum' THEN 'N'
+                    WHEN r.epnum = '$pnum' THEN 'W'
+                    WHEN r.wpnum = '$pnum' THEN 'E'
                 END
                 THEN 'pard_declr'
 		-- OLE additions
 			-- me leading
 			WHEN r.Declarer =
 				CASE
-					WHEN r.wpnum = me.me THEN 'S'
-					WHEN r.epnum = me.me THEN 'N'
-					WHEN r.npnum = me.me THEN 'W'
-					WHEN r.spnum = me.me THEN 'E'
+					WHEN r.wpnum = '$pnum' THEN 'S'
+					WHEN r.epnum = '$pnum' THEN 'N'
+					WHEN r.npnum = '$pnum' THEN 'W'
+					WHEN r.spnum = '$pnum' THEN 'E'
 				END
 				THEN 'me_leading'
 
 			-- pard leading
 			WHEN r.Declarer =
 				CASE
-					WHEN r.epnum = me.me THEN 'S'
-					WHEN r.wpnum = me.me THEN 'N'
-					WHEN r.spnum = me.me THEN 'W'
-					WHEN r.npnum = me.me THEN 'E'
+					WHEN r.epnum = '$pnum' THEN 'S'
+					WHEN r.wpnum = '$pnum' THEN 'N'
+					WHEN r.spnum = '$pnum' THEN 'W'
+					WHEN r.npnum = '$pnum' THEN 'E'
 				END
 				THEN 'pard_leading'
 -- No ELSE needed: all non-PASS cases are covered by the 4 WHEN blocks
         END AS role
 
     FROM results r
-    CROSS JOIN me
     JOIN pair_games pg
         ON  pg.GameId = r.GameId
         AND pg.club   = r.club
-        AND me.me IN (r.npnum, r.spnum, r.epnum, r.wpnum)
+        AND '$pnum' IN (r.npnum, r.spnum, r.epnum, r.wpnum)
 
     LEFT JOIN events e
         ON e.GameId = pg.GameId
@@ -3961,11 +3934,10 @@ final AS (
         COUNT(*) AS boards_played
     
     FROM games_with_pair_results g
-    CROSS JOIN me
     LEFT JOIN min_max mm
       ON mm.GameId = g.GameId
      AND mm.club   = g.club
-     AND me.me  IN (mm.pnum1, mm.pnum2)
+     AND '$pnum'  IN (mm.pnum1, mm.pnum2)
      AND g.pardnum IN (mm.pnum1, mm.pnum2)
 
 
