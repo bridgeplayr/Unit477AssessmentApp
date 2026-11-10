@@ -1161,7 +1161,7 @@ function get_history($conn, $pnum, $gmqualifier) {
 		SELECT count(GameId) AS games_played 
 		FROM players 
 		WHERE $gmqualifier 
-		AND ('$pnum' IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6)) ;
+		AND ('".$pnum."' IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6)) ;
 	";
 
 	$result = mysqli_query($conn, $history_sql);
@@ -1197,7 +1197,7 @@ my_game_ids AS (
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND '$pnum' IN (
+      AND '".$pnum."' IN (
             p.pnum1, p.pnum2, p.pnum3,
             p.pnum4, p.pnum5, p.pnum6
       )
@@ -1224,95 +1224,91 @@ games AS (
 my_games AS (
     SELECT g.*
     FROM games g
-    WHERE '$pnum' IN (
+    WHERE '".$pnum."' IN (
         g.pnum1, g.pnum2, g.pnum3,
         g.pnum4, g.pnum5, g.pnum6
     )
 ),
 
 indy_games AS (
-    SELECT DISTINCT GameId, club
+    SELECT DISTINCT mg.GameId, mg.club
 --  FROM games 
-    FROM my_games 
-    WHERE gametype = 'indy'
---    AND '$pnum' IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6)
+    FROM my_games mg
+    WHERE mg.gametype = 'indy'
+--    AND '".$pnum."' IN (pnum1, pnum2, pnum3, pnum4, pnum5, pnum6) REDUNDANT
 ),
 
 team_games AS (
-    SELECT DISTINCT GameId, club
+--  SELECT DISTINCT GameId, club
+		SELECT mg.*
 --  FROM games 
-    FROM my_games 
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
---    AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
+    FROM my_games mg
+    WHERE mg.gametype = 'teams'
+      AND mg.movement = 'Swiss teams'
+--    AND '".$pnum."' IN (mg.pnum1, mg.pnum2, mg.pnum3, mg.pnum4, mg.pnum5, mg.pnum6) REDUNDANT
 ),
 
 my_partners AS (
     SELECT
-        CASE WHEN '$pnum' = g.pnum1 THEN g.pnum2 ELSE g.pnum1 END AS pardnum,
-        CASE WHEN '$pnum' = g.pnum1 THEN g.player2 ELSE g.player1 END AS pardName,
+        CASE WHEN '".$pnum."' = mg.pnum1 THEN mg.pnum2 ELSE mg.pnum1 END AS pardnum,
+        CASE WHEN '".$pnum."' = mg.pnum1 THEN mg.player2 ELSE mg.player1 END AS pardName,
         1 AS partner
-    FROM my_games g
+    FROM my_games mg
     WHERE
-        (g.gametype = 'pairs'
-         OR (g.gametype = 'teams' AND g.movement = 'HomeStyle P'))
-      AND '$pnum' IN (g.pnum1, g.pnum2)
+        (mg.gametype = 'pairs'
+         OR (mg.gametype = 'teams' AND mg.movement = 'HomeStyle P'))
+      AND '".$pnum."' IN (mg.pnum1, mg.pnum2)
 ),
 
 my_teammates AS (
 
-    SELECT g.pnum1 AS pardnum, g.player1 AS pardName, 1 AS teammate
-    FROM my_games g 
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
-      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
-      AND g.pnum1 REGEXP '^[0-9]+$'
-      AND g.pnum1 <> '$pnum'
+--  SELECT mg.pnum1 AS pardnum, mg.player1 AS pardName, 1 AS teammate
+--  FROM my_games mg 
+--  WHERE mg.gametype = 'teams'
+--    AND mg.movement = 'Swiss teams'
+--    AND '".$pnum."' IN (mg.pnum1, mg.pnum2, mg.pnum3, mg.pnum4, mg.pnum5, mg.pnum6) REDUNDANT
+--    AND mg.pnum1 REGEXP '^[0-9]+$'
+--    AND mg.pnum1 <> '".$pnum."'
+
+		SELECT tg.pnum1 AS pardnum, tg.player1 AS pardName, 1 AS teammate
+		FROM team_games tg
+		WHERE tg.pnum1 REGEXP '^[0-9]+$'
+		  AND tg.pnum1 <> '".$pnum."'
 
     UNION ALL
-    SELECT g.pnum2, g.player2, 1
-    FROM my_games g 
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
-      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
-      AND g.pnum2 REGEXP '^[0-9]+$'
-      AND g.pnum2 <> '$pnum'
+
+    SELECT tg.pnum2, tg.player2, 1
+    FROM team_games tg
+    WHERE tg.pnum2 REGEXP '^[0-9]+$'
+      AND tg.pnum2 <> '".$pnum."'
 
     UNION ALL
-    SELECT g.pnum3, g.player3, 1
-    FROM my_games g 
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
-      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
-      AND g.pnum3 REGEXP '^[0-9]+$'
-      AND g.pnum3 <> '$pnum'
+
+    SELECT tg.pnum3, tg.player3, 1
+    FROM team_games tg
+    WHERE tg.pnum3 REGEXP '^[0-9]+$'
+      AND tg.pnum3 <> '".$pnum."'
 
     UNION ALL
-    SELECT g.pnum4, g.player4, 1
-    FROM my_games g 
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
-      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
-      AND g.pnum4 REGEXP '^[0-9]+$'
-      AND g.pnum4 <> '$pnum'
+
+    SELECT tg.pnum4, tg.player4, 1
+    FROM team_games tg
+    WHERE tg.pnum4 REGEXP '^[0-9]+$'
+      AND tg.pnum4 <> '".$pnum."'
 
     UNION ALL
-    SELECT g.pnum5, g.player5, 1
-    FROM my_games g 
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
-      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
-      AND g.pnum5 REGEXP '^[0-9]+$'
-      AND g.pnum5 <> '$pnum'
+
+    SELECT tg.pnum5, tg.player5, 1
+    FROM team_games tg
+    WHERE tg.pnum5 REGEXP '^[0-9]+$'
+      AND tg.pnum5 <> '".$pnum."'
 
     UNION ALL
-    SELECT g.pnum6, g.player6, 1
-    FROM my_games g 
-    WHERE g.gametype = 'teams'
-      AND g.movement = 'Swiss teams'
-      AND '$pnum' IN (g.pnum1, g.pnum2, g.pnum3, g.pnum4, g.pnum5, g.pnum6)
-      AND g.pnum6 REGEXP '^[0-9]+$'
-      AND g.pnum6 <> '$pnum'
+
+    SELECT tg.pnum6, tg.player6, 1
+    FROM team_games tg
+    WHERE tg.pnum6 REGEXP '^[0-9]+$'
+      AND tg.pnum6 <> '".$pnum."'
 ),
 
 indy_partners AS (
@@ -1321,9 +1317,12 @@ indy_partners AS (
         g.player1 AS pardName,
         (SELECT COUNT(*) FROM indy_games) AS indy_game_count
     FROM games g  
-    WHERE g.gametype = 'indy'
-      AND g.pnum1 <> '$pnum'
+    JOIN indy_games ig
+      ON ig.GameId = g.GameId
+     AND ig.club   = g.club
+    WHERE g.pnum1 <> '".$pnum."'
 ),
+
 all_partners AS (
     SELECT pardnum, pardName, partner, 0 AS teammate, 0 AS indy
     FROM my_partners
@@ -1380,11 +1379,21 @@ ORDER BY
 
 
 ##################################################################
-# global var, "$pair_sql1" used in get_partner_details() as well as
-# get_partners_summary()
+#
+#   function build_pair_sql1($pnum) returns string $pair_sql
+#
+# "$pair_sql1" is used in get_partner_details() as well as
+# get_partners_summary() 
+#
+# After converting 'me.me' in the sql to '$pnum', PHP
+# needs to know its value, so create a function with an arg 
+# passing $pnum.
 ##################################################################
-$pair_sql1 =
-"
+function build_pair_sql1($pnum) {
+
+// $pair_sql1 = "
+
+	return "
 games AS (
     SELECT
         e.GameId,
@@ -1402,10 +1411,10 @@ games AS (
     FROM events e
     JOIN players p
       ON 	p.GameId = e.GameId
-		AND p.club   = e.club
+			AND p.club   = e.club
     JOIN my_game_ids mg
       ON 	mg.GameId = e.GameId
-		AND mg.club   = e.club
+			AND mg.club   = e.club
 ),
 
 games_with_dir AS (
@@ -1426,22 +1435,22 @@ ranked AS (
     SELECT
         ri.*,
 		CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
-			RANK() OVER ( PARTITION BY ri.GameId, ri.dir 
+			RANK() OVER ( PARTITION BY ri.GameId, ri.club, ri.dir 
 						  ORDER BY ri.Score DESC )
 			ELSE
-			RANK() OVER ( PARTITION BY ri.GameId 
+			RANK() OVER ( PARTITION BY ri.GameId, ri.club 
 						  ORDER BY ri.Score DESC )
 		END AS sec_rank_A,
 
     CASE WHEN ri.strat IN ('B','C') THEN
       CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
-					PARTITION BY ri.GameId, ri.dir, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
 			ELSE
 				RANK() OVER (
-					PARTITION BY ri.GameId, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
       END
@@ -1450,30 +1459,30 @@ ranked AS (
     CASE WHEN ri.strat = 'C' THEN
       CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
-					PARTITION BY ri.GameId, ri.dir, CASE WHEN ri.strat = 'C' THEN 'C' END
+					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
 			ELSE
 				RANK() OVER (
-					PARTITION BY ri.GameId, CASE WHEN ri.strat = 'C' THEN 'C' END
+					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
       END
     END AS sec_rank_C,
 
-    RANK() OVER ( PARTITION BY ri.GameId
+    RANK() OVER ( PARTITION BY ri.GameId, ri.club
 			ORDER BY ri.Score DESC ) AS ov_rank_A,
 
     CASE WHEN ri.strat IN ('B','C') THEN
       RANK() OVER (
-        PARTITION BY ri.GameId, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+        PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
         ORDER BY ri.Score DESC
         )
     END AS ov_rank_B,
 
     CASE WHEN ri.strat = 'C' THEN
       RANK() OVER (
-        PARTITION BY ri.GameId, CASE WHEN ri.strat = 'C' THEN 'C' END
+        PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
         ORDER BY ri.Score DESC
         )
     END AS ov_rank_C
@@ -1487,62 +1496,62 @@ tie_groups AS (
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER (PARTITION BY r.GameId, r.dir)
+                COUNT(*) OVER (PARTITION BY r.GameId, r.club, r.dir)
             ELSE
-                COUNT(*) OVER (PARTITION BY r.GameId)
+                COUNT(*) OVER (PARTITION BY r.GameId, r.club)
         END AS pop_sec_A,
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
             ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
         END AS pop_sec_B,
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
             ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
         END AS pop_sec_C,
 
-        COUNT(*) OVER (PARTITION BY r.GameId) AS pop_ov_A,
+        COUNT(*) OVER (PARTITION BY r.GameId, r.club) AS pop_ov_A,
 
         CASE
             WHEN r.strat IN ('B','C') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
         END AS pop_ov_B,
 
         CASE
             WHEN r.strat = 'C' THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
         END AS pop_ov_C,
 
         CASE WHEN r.sec_rank_A IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_A)
         END AS tie_sec_A,
 
         CASE WHEN r.sec_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_B)
         END AS tie_sec_B,
 
         CASE WHEN r.sec_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_C)
         END AS tie_sec_C,
 
-        COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_A
+        COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_A
         ) AS tie_ov_A,
 
         CASE WHEN r.ov_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_B
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_B
             )
         END AS tie_ov_B,
 
         CASE WHEN r.ov_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_C
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_C
             )
         END AS tie_ov_C
 
@@ -1642,18 +1651,18 @@ pair_games AS (
     SELECT
         mm.*,
         CASE 
-            WHEN '$pnum' = mm.pnum1 THEN mm.pnum2
+            WHEN '".$pnum."' = mm.pnum1 THEN mm.pnum2
             ELSE mm.pnum1
         END AS pardnum,
 
         
         CASE 
-            WHEN '$pnum' = mm.pnum1 THEN mm.player2
+            WHEN '".$pnum."' = mm.pnum1 THEN mm.player2
             ELSE mm.player1
         END AS pardName
 
     FROM min_max mm
-    WHERE '$pnum' IN (mm.pnum1, mm.pnum2)
+    WHERE '".$pnum."' IN (mm.pnum1, mm.pnum2)
       AND NULLIF(mm.pnum3, '') IS NULL
 			AND mm.gametype = 'pairs'
       -- AND mm.movement NOT LIKE 'Swiss%'
@@ -1705,17 +1714,17 @@ results_enriched AS (
 			r.ewmtchpts,
 
     CASE
-			WHEN r.npnum = '$pnum' THEN 'N'
-			WHEN r.spnum = '$pnum' THEN 'S'
-			WHEN r.epnum = '$pnum' THEN 'E'
-			WHEN r.wpnum = '$pnum' THEN 'W'
+			WHEN r.npnum = '".$pnum."' THEN 'N'
+			WHEN r.spnum = '".$pnum."' THEN 'S'
+			WHEN r.epnum = '".$pnum."' THEN 'E'
+			WHEN r.wpnum = '".$pnum."' THEN 'W'
     END AS my_seat,
 
     CASE
-			WHEN r.npnum = '$pnum' THEN 'S'
-			WHEN r.spnum = '$pnum' THEN 'N'
-			WHEN r.epnum = '$pnum' THEN 'W'
-			WHEN r.wpnum = '$pnum' THEN 'E'
+			WHEN r.npnum = '".$pnum."' THEN 'S'
+			WHEN r.spnum = '".$pnum."' THEN 'N'
+			WHEN r.epnum = '".$pnum."' THEN 'W'
+			WHEN r.wpnum = '".$pnum."' THEN 'E'
     END AS pard_seat,
 
     CASE
@@ -1724,20 +1733,20 @@ results_enriched AS (
 				-- me declaring
       	WHEN r.Declarer =
           CASE
-            WHEN r.npnum = '$pnum' THEN 'N'
-            WHEN r.spnum = '$pnum' THEN 'S'
-            WHEN r.epnum = '$pnum' THEN 'E'
-            WHEN r.wpnum = '$pnum' THEN 'W'
+            WHEN r.npnum = '".$pnum."' THEN 'N'
+            WHEN r.spnum = '".$pnum."' THEN 'S'
+            WHEN r.epnum = '".$pnum."' THEN 'E'
+            WHEN r.wpnum = '".$pnum."' THEN 'W'
           END
         	THEN 'me_declr'
 
 				-- pard declaring
         WHEN r.Declarer =
           CASE
-            WHEN r.npnum = '$pnum' THEN 'S'
-            WHEN r.spnum = '$pnum' THEN 'N'
-            WHEN r.epnum = '$pnum' THEN 'W'
-            WHEN r.wpnum = '$pnum' THEN 'E'
+            WHEN r.npnum = '".$pnum."' THEN 'S'
+            WHEN r.spnum = '".$pnum."' THEN 'N'
+            WHEN r.epnum = '".$pnum."' THEN 'W'
+            WHEN r.wpnum = '".$pnum."' THEN 'E'
           END
         	THEN 'pard_declr'
 
@@ -1745,20 +1754,20 @@ results_enriched AS (
 			-- me leading
         WHEN r.Declarer =
           CASE
-            WHEN r.wpnum = '$pnum' THEN 'S'
-            WHEN r.epnum = '$pnum' THEN 'N'
-            WHEN r.npnum = '$pnum' THEN 'W'
-            WHEN r.spnum = '$pnum' THEN 'E'
+            WHEN r.wpnum = '".$pnum."' THEN 'S'
+            WHEN r.epnum = '".$pnum."' THEN 'N'
+            WHEN r.npnum = '".$pnum."' THEN 'W'
+            WHEN r.spnum = '".$pnum."' THEN 'E'
           END
         	THEN 'me_leading'
 
 			-- pard leading
         WHEN r.Declarer =
           CASE
-            WHEN r.epnum = '$pnum' THEN 'S'
-            WHEN r.wpnum = '$pnum' THEN 'N'
-            WHEN r.spnum = '$pnum' THEN 'W'
-            WHEN r.npnum = '$pnum' THEN 'E'
+            WHEN r.epnum = '".$pnum."' THEN 'S'
+            WHEN r.wpnum = '".$pnum."' THEN 'N'
+            WHEN r.spnum = '".$pnum."' THEN 'W'
+            WHEN r.npnum = '".$pnum."' THEN 'E'
           END
         	THEN 'pard_leading'
 -- No ELSE needed: all non-PASS cases are covered by the 4 WHEN blocks
@@ -1769,7 +1778,7 @@ results_enriched AS (
     JOIN pair_games pg
       ON  pg.GameId = r.GameId
       AND pg.club   = r.club
-      AND '$pnum' IN (r.npnum, r.spnum, r.epnum, r.wpnum)
+      AND '".$pnum."' IN (r.npnum, r.spnum, r.epnum, r.wpnum)
 
     LEFT JOIN events e
       ON e.GameId = pg.GameId
@@ -1911,7 +1920,7 @@ final AS (
     LEFT JOIN min_max mm
       ON mm.GameId = g.GameId
      AND mm.club   = g.club
-     AND '$pnum'  IN (mm.pnum1, mm.pnum2)
+     AND '".$pnum."'  IN (mm.pnum1, mm.pnum2)
      AND g.pardnum IN (mm.pnum1, mm.pnum2)
 
 
@@ -2008,6 +2017,7 @@ ORDER BY
     f.GameId
 )
 ";
+}
 
 ###########################    BEGIN function get_partner_details ##############################
 #
@@ -2015,7 +2025,9 @@ ORDER BY
 #
 #
 function get_partner_details($conn, $pnum, $gmqualifier) {
-	global $pair_sql1 ;
+	// global $pair_sql1 ;
+
+	$pair_sql1 = build_pair_sql1($pnum);
 
 	$pair_sql_hdr =
 "WITH
@@ -2026,7 +2038,7 @@ my_game_ids AS (
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND '$pnum' IN (
+      AND '".$pnum."' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),"
@@ -2123,7 +2135,9 @@ ORDER BY
 #
 #
 function get_partners_summary($conn, $pnum, $gmqualifier) {
-	global $pair_sql1 ;
+	// global $pair_sql1 ;
+
+	$pair_sql1 = build_pair_sql1($pnum);
 
 	$pair_sql_hdr =
 "WITH
@@ -2134,7 +2148,7 @@ my_game_ids AS (
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND '$pnum' IN (
+      AND '".$pnum."' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),"
@@ -2264,11 +2278,22 @@ my_game_ids AS (
 } // query3b
 
 ##################################################################
-# global "$teamgame_sql_body" - used in get_teamgames() and in 
+#
+#   function build_teamgame_sql_body($pnum) returns string 
+#   $teamgame_sql_body
+#
+# "$teamgame_sql_body" - used in get_teamgames() and in 
 # get_teammates_summary
+#
+# After converting 'me.me' in the sql to '$pnum', PHP
+# needs to know its value, so create a function with an arg 
+# passing $pnum.
 ##################################################################
-	$teamgame_sql_body =
-"
+function build_teamgame_sql_body($pnum) {
+
+// $teamgame_sql_body = "
+
+	return "
 games AS (
     SELECT
         e.GameId,
@@ -2287,10 +2312,10 @@ games AS (
     FROM events e
     JOIN players p
       ON 	p.GameId = e.GameId
-		AND p.club   = e.club
+			AND p.club   = e.club
     JOIN my_game_ids mg
       ON 	mg.GameId = e.GameId
-		AND mg.club   = e.club
+			AND mg.club   = e.club
 ),
 
 games_with_dir AS (
@@ -2313,22 +2338,22 @@ ranked AS (
 
 
 		CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
-			RANK() OVER ( PARTITION BY ri.GameId, ri.dir 
+			RANK() OVER ( PARTITION BY ri.GameId, ri.club, ri.dir 
 						  ORDER BY ri.Score DESC )
 			ELSE
-			RANK() OVER ( PARTITION BY ri.GameId 
+			RANK() OVER ( PARTITION BY ri.GameId, ri.club 
 						  ORDER BY ri.Score DESC )
 		END AS sec_rank_A,
 
         CASE WHEN ri.strat IN ('B','C') THEN
             CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
-					PARTITION BY ri.GameId, ri.dir, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
 			ELSE
 				RANK() OVER (
-					PARTITION BY ri.GameId, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
             END
@@ -2337,30 +2362,30 @@ ranked AS (
         CASE WHEN ri.strat = 'C' THEN
             CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
-					PARTITION BY ri.GameId, ri.dir, CASE WHEN ri.strat = 'C' THEN 'C' END
+					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
 			ELSE
 				RANK() OVER (
-					PARTITION BY ri.GameId, CASE WHEN ri.strat = 'C' THEN 'C' END
+					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
             END
         END AS sec_rank_C,
 
-        RANK() OVER ( PARTITION BY ri.GameId
+        RANK() OVER ( PARTITION BY ri.GameId, ri.club
 					  ORDER BY ri.Score DESC ) AS ov_rank_A,
 
         CASE WHEN ri.strat IN ('B','C') THEN
             RANK() OVER (
-                PARTITION BY ri.GameId, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
                 ORDER BY ri.Score DESC
             )
         END AS ov_rank_B,
 
         CASE WHEN ri.strat = 'C' THEN
             RANK() OVER (
-                PARTITION BY ri.GameId, CASE WHEN ri.strat = 'C' THEN 'C' END
+                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
                 ORDER BY ri.Score DESC
             )
         END AS ov_rank_C
@@ -2373,62 +2398,62 @@ tie_groups AS (
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER (PARTITION BY r.GameId, r.dir)
+                COUNT(*) OVER (PARTITION BY r.GameId, r.club, r.dir)
             ELSE
-                COUNT(*) OVER (PARTITION BY r.GameId)
+                COUNT(*) OVER (PARTITION BY r.GameId, r.club)
         END AS pop_sec_A,
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
             ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
         END AS pop_sec_B,
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
             ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
         END AS pop_sec_C,
 
-        COUNT(*) OVER (PARTITION BY r.GameId) AS pop_ov_A,
+        COUNT(*) OVER (PARTITION BY r.GameId, r.club) AS pop_ov_A,
 
         CASE
             WHEN r.strat IN ('B','C') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
         END AS pop_ov_B,
 
         CASE
             WHEN r.strat = 'C' THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
         END AS pop_ov_C,
 
         CASE WHEN r.sec_rank_A IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_A)
         END AS tie_sec_A,
 
         CASE WHEN r.sec_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_B)
         END AS tie_sec_B,
 
         CASE WHEN r.sec_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_C)
         END AS tie_sec_C,
 
-        COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_A
+        COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_A
         ) AS tie_ov_A,
 
         CASE WHEN r.ov_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_B
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_B
             )
         END AS tie_ov_B,
 
         CASE WHEN r.ov_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_C
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_C
             )
         END AS tie_ov_C
 
@@ -2531,8 +2556,10 @@ team_games AS (
     SELECT mm.* 
     
     FROM min_max mm
-    WHERE NULLIF(mm.pnum3, '') IS NOT NULL      -- team games only
-      AND '$pnum' IN (                            -- my team only
+--  WHERE NULLIF(mm.pnum3, '') IS NOT NULL      -- team games only
+		WHERE mm.gametype = 'teams'
+      AND mm.movement = 'Swiss teams'
+      AND '".$pnum."' IN (                      -- my team only
             mm.pnum1, mm.pnum2, mm.pnum3,
             mm.pnum4, mm.pnum5, mm.pnum6
       )
@@ -2579,7 +2606,7 @@ team_unnested AS (
 team_teammates_only AS (
     SELECT *
     FROM team_unnested tu
-    WHERE tu.teammate_pnum <> '$pnum'
+    WHERE tu.teammate_pnum <> '".$pnum."'
 ),
 
 team_pivoted AS (
@@ -2609,7 +2636,7 @@ team_pivoted AS (
         SELECT
             tu.*,
             ROW_NUMBER() OVER (
-                PARTITION BY GameId, player_pair_team
+                PARTITION BY GameId, club, player_pair_team
                 ORDER BY slot
             ) AS rn
         FROM team_teammates_only tu
@@ -2617,26 +2644,32 @@ team_pivoted AS (
 
     GROUP BY
         GameId, club, player_pair_team, 
-        movement, strat, Pct,
+				movement, rounds, strat, scoring, score,
+				Pct,
         frac_ov_A, frac_ov_B, frac_ov_C,
         ov_rating_A, ov_rating_B, ov_rating_C,
         pop_ov_A, pop_ov_B, pop_ov_C
 )  -- THIS is the last CTE for teamgames
 ";
+}
 
-
-###########################    BEGIN function get_teamgames ##############################
+##################################################################
 #
-#    - called from controller for query4a
+#   function build_teamgame_sql_hdr($gmqualifier, $pnum) returns string 
+#   $teamgame_sql_hdr
 #
+# "$teamgame_sql_hdr" - used in get_teamgames() and in 
+# get_teammates_summary
 #
-function get_teamgames($conn, $pnum, $gmqualifier) {
-	global $teamgame_sql_body;  
+# After converting 'me.me' in the sql to '$pnum', PHP
+# needs to know its value, so create a function with an arg 
+# passing $pnum.
+##################################################################
+function build_teamgame_sql_hdr($gmqualifier, $pnum) {
 
-	// error_log("get_teamgames() START");
+// $teamgame_sql_hdr = "
 
-	$teamgame_sql_hdr =
-"
+	return "
 WITH
 
 my_game_ids AS (
@@ -2646,49 +2679,62 @@ my_game_ids AS (
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND '$pnum' IN (
+      AND '".$pnum."' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),
 ";
 
+}
+
+###########################    BEGIN function get_teamgames ##############################
+#
+#    - called from controller for query4a
+#
+#
+function get_teamgames($conn, $pnum, $gmqualifier) {
+	// WAS global $teamgame_sql_body
+
+	$teamgame_sql_hdr = build_teamgame_sql_hdr($gmqualifier, $pnum) ;
+
+	$teamgame_sql_body = build_teamgame_sql_body($pnum);
+
 	$teamgame_sql_select =
 "
 SELECT 
 	GameId,
-    player_pair_team AS Team_id,
+  player_pair_team AS Team_id,
 	club,
 	movement,
-    strat,
-    CASE scoring
+  strat,
+  CASE scoring
 		WHEN 'VICTORY POINT' THEN 'VP'
-        WHEN 'WIN-LOSS' 	 THEN 'W-L'
-        WHEN 'MATCHPOINTS'   THEN 'Mtchpts'
-    END AS ScrMethod,
-    rounds,
+    WHEN 'WIN-LOSS' 	 	 THEN 'W-L'
+    WHEN 'MATCHPOINTS'   THEN 'Mtchpts'
+  END AS ScrMethod,
+  rounds,
 	score,
     -- max_score,
     -- Calc_Pct,
-    Pct,
-    teammate1,
-    teammate2,
-    teammate3,
-    teammate4,
-    teammate5,
-    clean_num(frac_ov_A) AS Ov_Rnk_A, 
+  Pct,
+  teammate1,
+  teammate2,
+  teammate3,
+  teammate4,
+  teammate5,
+  clean_num(frac_ov_A) AS Ov_Rnk_A, 
 	clean_num(frac_ov_B) AS Ov_Rnk_B,
-    clean_num(frac_ov_C) AS Ov_Rnk_C,
+  clean_num(frac_ov_C) AS Ov_Rnk_C,
 	clean_num(ov_rating_A) AS Ov_Rtg_A,
-		pop_ov_A AS pop_A, 
+	pop_ov_A AS pop_A, 
 	clean_num(ov_rating_B) AS Ov_Rtg_B,
-		pop_ov_B AS pop_B, 
+	pop_ov_B AS pop_B, 
 	clean_num(ov_rating_C) AS Ov_Rtg_C,
-		pop_ov_C AS pop_C
+	pop_ov_C AS pop_C
     
 FROM team_pivoted
 ORDER BY GameId, club;
 ";
-
 	
 	$teamgames_sql = $teamgame_sql_hdr . $teamgame_sql_body . $teamgame_sql_select ;
 	$result = mysqli_query($conn, $teamgames_sql); 
@@ -2718,28 +2764,13 @@ ORDER BY GameId, club;
 #
 #
 function get_teammates_summary($conn, $pnum, $gmqualifier) {
-	global $teamgame_sql_body;  
+	// WAS global $teamgame_sql_body
 
-	$teamgame_sql_hdr =
-"
-WITH
+	$teammate_sql_hdr = build_teamgame_sql_hdr($gmqualifier, $pnum);
+	//   ^^^^ same as teamgame
 
-my_game_ids AS (
-    SELECT DISTINCT p.GameId, p.club
-    FROM events e
-    JOIN players p
-      ON p.GameId = e.GameId
-     AND p.club   = e.club
-    WHERE e.$gmqualifier
-      AND '$pnum' IN (
-		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
-	  )
-),
-";
-
-	$teammate_sql_hdr  = $teamgame_sql_hdr; // redundant
-
-	$teammate_sql_body = $teamgame_sql_body; // redundant 
+	$teammate_sql_body = build_teamgame_sql_body($pnum);
+	//   ^^^^ same as teamgame
 
 	$teammate_sql_final_select = 
 "
@@ -3375,7 +3406,7 @@ my_game_ids AS (
       ON p.GameId = e.GameId
      AND p.club   = e.club
     WHERE e.$gmqualifier
-      AND '$pnum' IN (
+      AND '".$pnum."' IN (
 		p.pnum1, p.pnum2, p.pnum3, p.pnum4, p.pnum5, p.pnum6
 	  )
 ),
@@ -3400,10 +3431,10 @@ games AS (
     FROM events e
     JOIN players p
       ON 	p.GameId = e.GameId
-		AND p.club   = e.club
+			AND p.club   = e.club
     JOIN my_game_ids mg
       ON 	mg.GameId = e.GameId
-		AND mg.club   = e.club
+			AND mg.club   = e.club
 ),
 
 
@@ -3437,10 +3468,10 @@ ranked AS (
 
         /* ---------- Section A (all strats) ---------- */
 		CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
-			RANK() OVER ( PARTITION BY ri.GameId, ri.dir 
+			RANK() OVER ( PARTITION BY ri.GameId, ri.club, ri.dir 
 						  ORDER BY ri.Score DESC )
 			ELSE
-			RANK() OVER ( PARTITION BY ri.GameId 
+			RANK() OVER ( PARTITION BY ri.GameId, ri.club 
 						  ORDER BY ri.Score DESC )
 		END AS sec_rank_A,
 
@@ -3448,12 +3479,12 @@ ranked AS (
         CASE WHEN ri.strat IN ('B','C') THEN
             CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
-					PARTITION BY ri.GameId, ri.dir, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
 			ELSE
 				RANK() OVER (
-					PARTITION BY ri.GameId, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
             END
@@ -3463,12 +3494,12 @@ ranked AS (
         CASE WHEN ri.strat = 'C' THEN
             CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
-					PARTITION BY ri.GameId, ri.dir, CASE WHEN ri.strat = 'C' THEN 'C' END
+					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
 			ELSE
 				RANK() OVER (
-					PARTITION BY ri.GameId, CASE WHEN ri.strat = 'C' THEN 'C' END
+					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
             END
@@ -3479,13 +3510,13 @@ ranked AS (
            ============================================================ */
 
         /* ---------- Overall A (all pairs) ---------- */
-        RANK() OVER ( PARTITION BY ri.GameId
+        RANK() OVER ( PARTITION BY ri.GameId, ri.club,
 					  ORDER BY ri.Score DESC ) AS ov_rank_A,
 
         /* ---------- Overall B (B+C only) ---------- */
         CASE WHEN ri.strat IN ('B','C') THEN
             RANK() OVER (
-                PARTITION BY ri.GameId, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
                 ORDER BY ri.Score DESC
             )
         END AS ov_rank_B,
@@ -3493,7 +3524,7 @@ ranked AS (
         /* ---------- Overall C (C only) ---------- */
         CASE WHEN ri.strat = 'C' THEN
             RANK() OVER (
-                PARTITION BY ri.GameId, CASE WHEN ri.strat = 'C' THEN 'C' END
+                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
                 ORDER BY ri.Score DESC
             )
         END AS ov_rank_C
@@ -3511,65 +3542,65 @@ tie_groups AS (
         /* ---------- Section populations ---------- */
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER (PARTITION BY r.GameId, r.dir)
+                COUNT(*) OVER (PARTITION BY r.GameId, r.club, r.dir)
             ELSE
-                COUNT(*) OVER (PARTITION BY r.GameId)
+                COUNT(*) OVER (PARTITION BY r.GameId, r.club)
         END AS pop_sec_A,
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
             ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
         END AS pop_sec_B,
 
         CASE
             WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
             ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
         END AS pop_sec_C,
 
         /* ---------- Overall populations (all pairs, no dir) ---------- */
-        COUNT(*) OVER (PARTITION BY r.GameId) AS pop_ov_A,
+        COUNT(*) OVER (PARTITION BY r.GameId, r.club) AS pop_ov_A,
 
         CASE
             WHEN r.strat IN ('B','C') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
         END AS pop_ov_B,
 
         CASE
             WHEN r.strat = 'C' THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
         END AS pop_ov_C,
 
         /* ---------- Tie counts for section ranks ---------- */
         CASE WHEN r.sec_rank_A IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_A)
         END AS tie_sec_A,
 
         CASE WHEN r.sec_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_B)
         END AS tie_sec_B,
 
         CASE WHEN r.sec_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
 							r.sec_rank_C)
         END AS tie_sec_C,
 
         /* ---------- Tie counts for overall ranks ---------- */
-        COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_A
+        COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_A
         ) AS tie_ov_A,
 
         CASE WHEN r.ov_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_B
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_B
             )
         END AS tie_ov_B,
 
         CASE WHEN r.ov_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.ov_rank_C
+            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_C
             )
         END AS tie_ov_C
 
@@ -3681,18 +3712,18 @@ pair_games AS (
     SELECT
         mm.*,
         CASE 
-            WHEN '$pnum' = mm.pnum1 THEN mm.pnum2
+            WHEN '".$pnum."' = mm.pnum1 THEN mm.pnum2
             ELSE mm.pnum1
         END AS pardnum,
 
         -- Partner name
         CASE 
-            WHEN '$pnum' = mm.pnum1 THEN mm.player2
+            WHEN '".$pnum."' = mm.pnum1 THEN mm.player2
             ELSE mm.player1
         END AS pardName
 
     FROM min_max mm
-    WHERE '$pnum' IN (mm.pnum1, mm.pnum2, mm.pnum3, mm.pnum4, mm.pnum5, mm.pnum6)
+    WHERE '".$pnum."' IN (mm.pnum1, mm.pnum2, mm.pnum3, mm.pnum4, mm.pnum5, mm.pnum6)
       -- AND NULLIF(mm.pnum3, '') IS NULL
       -- AND mm.movement NOT LIKE 'Swiss%'
 ),
@@ -3727,18 +3758,18 @@ results_enriched AS (
 
         -- My seat
         CASE
-            WHEN r.npnum = '$pnum' THEN 'N'
-            WHEN r.spnum = '$pnum' THEN 'S'
-            WHEN r.epnum = '$pnum' THEN 'E'
-            WHEN r.wpnum = '$pnum' THEN 'W'
+            WHEN r.npnum = '".$pnum."' THEN 'N'
+            WHEN r.spnum = '".$pnum."' THEN 'S'
+            WHEN r.epnum = '".$pnum."' THEN 'E'
+            WHEN r.wpnum = '".$pnum."' THEN 'W'
         END AS my_seat,
 
         -- Partner seat
         CASE
-            WHEN r.npnum = '$pnum' THEN 'S'
-            WHEN r.spnum = '$pnum' THEN 'N'
-            WHEN r.epnum = '$pnum' THEN 'W'
-            WHEN r.wpnum = '$pnum' THEN 'E'
+            WHEN r.npnum = '".$pnum."' THEN 'S'
+            WHEN r.spnum = '".$pnum."' THEN 'N'
+            WHEN r.epnum = '".$pnum."' THEN 'W'
+            WHEN r.wpnum = '".$pnum."' THEN 'E'
         END AS pard_seat,
 
         -- Role
@@ -3746,38 +3777,38 @@ results_enriched AS (
             WHEN r.contractLevel = 'PASS' THEN 'passout'
             WHEN r.Declarer =
                 CASE
-                    WHEN r.npnum = '$pnum' THEN 'N'
-                    WHEN r.spnum = '$pnum' THEN 'S'
-                    WHEN r.epnum = '$pnum' THEN 'E'
-                    WHEN r.wpnum = '$pnum' THEN 'W'
+                    WHEN r.npnum = '".$pnum."' THEN 'N'
+                    WHEN r.spnum = '".$pnum."' THEN 'S'
+                    WHEN r.epnum = '".$pnum."' THEN 'E'
+                    WHEN r.wpnum = '".$pnum."' THEN 'W'
                 END
                 THEN 'me_declr'
             WHEN r.Declarer =
                 CASE
-                    WHEN r.npnum = '$pnum' THEN 'S'
-                    WHEN r.spnum = '$pnum' THEN 'N'
-                    WHEN r.epnum = '$pnum' THEN 'W'
-                    WHEN r.wpnum = '$pnum' THEN 'E'
+                    WHEN r.npnum = '".$pnum."' THEN 'S'
+                    WHEN r.spnum = '".$pnum."' THEN 'N'
+                    WHEN r.epnum = '".$pnum."' THEN 'W'
+                    WHEN r.wpnum = '".$pnum."' THEN 'E'
                 END
                 THEN 'pard_declr'
 		-- OLE additions
 			-- me leading
 			WHEN r.Declarer =
 				CASE
-					WHEN r.wpnum = '$pnum' THEN 'S'
-					WHEN r.epnum = '$pnum' THEN 'N'
-					WHEN r.npnum = '$pnum' THEN 'W'
-					WHEN r.spnum = '$pnum' THEN 'E'
+					WHEN r.wpnum = '".$pnum."' THEN 'S'
+					WHEN r.epnum = '".$pnum."' THEN 'N'
+					WHEN r.npnum = '".$pnum."' THEN 'W'
+					WHEN r.spnum = '".$pnum."' THEN 'E'
 				END
 				THEN 'me_leading'
 
 			-- pard leading
 			WHEN r.Declarer =
 				CASE
-					WHEN r.epnum = '$pnum' THEN 'S'
-					WHEN r.wpnum = '$pnum' THEN 'N'
-					WHEN r.spnum = '$pnum' THEN 'W'
-					WHEN r.npnum = '$pnum' THEN 'E'
+					WHEN r.epnum = '".$pnum."' THEN 'S'
+					WHEN r.wpnum = '".$pnum."' THEN 'N'
+					WHEN r.spnum = '".$pnum."' THEN 'W'
+					WHEN r.npnum = '".$pnum."' THEN 'E'
 				END
 				THEN 'pard_leading'
 -- No ELSE needed: all non-PASS cases are covered by the 4 WHEN blocks
@@ -3787,7 +3818,7 @@ results_enriched AS (
     JOIN pair_games pg
         ON  pg.GameId = r.GameId
         AND pg.club   = r.club
-        AND '$pnum' IN (r.npnum, r.spnum, r.epnum, r.wpnum)
+        AND '".$pnum."' IN (r.npnum, r.spnum, r.epnum, r.wpnum)
 
     LEFT JOIN events e
         ON e.GameId = pg.GameId
@@ -3850,7 +3881,7 @@ games_with_pair_results AS (
     FROM pair_games pg
     LEFT JOIN results_enriched re
         ON 	re.GameId = pg.GameId 
-		AND re.club   = pg.club
+				AND re.club   = pg.club
 
 
     
@@ -3937,7 +3968,7 @@ final AS (
     LEFT JOIN min_max mm
       ON mm.GameId = g.GameId
      AND mm.club   = g.club
-     AND '$pnum'  IN (mm.pnum1, mm.pnum2)
+     AND '".$pnum."'  IN (mm.pnum1, mm.pnum2)
      AND g.pardnum IN (mm.pnum1, mm.pnum2)
 
 
@@ -4650,7 +4681,7 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 				ON p.GameId = e.GameId
 			 AND p.club   = e.club
 			WHERE e.$gmqualifier
-        AND '$pnum' IN (
+        AND '".$pnum."' IN (
 					p.pnum1,
 					p.pnum2,
 					p.pnum3,
@@ -4721,17 +4752,17 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
         r.board_id,
 
         CASE
-            WHEN r.npnum = '$pnum' THEN 'N'
-            WHEN r.spnum = '$pnum' THEN 'S'
-            WHEN r.epnum = '$pnum' THEN 'E'
-            WHEN r.wpnum = '$pnum' THEN 'W'
+            WHEN r.npnum = '".$pnum."' THEN 'N'
+            WHEN r.spnum = '".$pnum."' THEN 'S'
+            WHEN r.epnum = '".$pnum."' THEN 'E'
+            WHEN r.wpnum = '".$pnum."' THEN 'W'
         END AS myseat,
 
         CASE
-            WHEN r.npnum = '$pnum' THEN 'S'
-            WHEN r.spnum = '$pnum' THEN 'N'
-            WHEN r.epnum = '$pnum' THEN 'W'
-            WHEN r.wpnum = '$pnum' THEN 'E'
+            WHEN r.npnum = '".$pnum."' THEN 'S'
+            WHEN r.spnum = '".$pnum."' THEN 'N'
+            WHEN r.epnum = '".$pnum."' THEN 'W'
+            WHEN r.wpnum = '".$pnum."' THEN 'E'
         END AS pardseat,
 
         h.deal
@@ -4747,7 +4778,7 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
      AND h.club     = r.club
      AND h.board_id = r.board_id
 
-    WHERE '$pnum' IN (
+    WHERE '".$pnum."' IN (
         r.npnum,
         r.spnum,
         r.epnum,
