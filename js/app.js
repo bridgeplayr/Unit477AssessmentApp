@@ -60,6 +60,27 @@
 			});
     });
 
+		// keep Send-to / Email section open when email is requested
+    const sendCheckbox = document.querySelector("#send");
+
+    if (sendCheckbox) {
+        const sendSection = sendCheckbox.closest(".form-section");
+        const btn = sendSection.querySelector(".section-toggle");
+        const content = sendSection.querySelector(".section-content");
+
+        function setSendSectionState() {
+            content.style.display = sendCheckbox.checked ? "block" : "none";
+            btn.classList.toggle("open", sendCheckbox.checked);
+        }
+
+        // Set initial state from PHP-generated checkbox state
+        setSendSectionState();
+
+        // Change state whenever checkbox is checked/unchecked
+        sendCheckbox.addEventListener("change", setSendSectionState);
+    }
+
+
     // auto-collapse player section once selected
     const playerSection = document.querySelector("#playerSection");
     if (playerSection && playerSection.dataset.selected === "yes") {

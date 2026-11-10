@@ -17,9 +17,15 @@ Thumbs.db
 /vendor/
 
 # Spreadsheet output
-*.xlsx
+# *.xlsx
 *.xls
 
 # Old versions
 *OLD*
 /spreadsheets
+
+# execution log files
+logfile*
+
+# unneeded leftovers
+playerReset.php
