@@ -1475,7 +1475,7 @@ ranked AS (
 
     CASE WHEN ri.strat IN ('B','C') THEN
       RANK() OVER (
-        PARTITION BY ri.GameId, ri.club CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+        PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
         ORDER BY ri.Score DESC
         )
     END AS ov_rank_B,
@@ -2295,263 +2295,298 @@ function build_teamgame_sql_body($pnum) {
 
 	return "
 games AS (
-    SELECT
-        e.GameId,
-        e.section,
-        e.gametype,
-        e.scoring,
-        e.movement,
-        e.rounds,
-        p.player_pair_team,
-        p.player1, p.player2, p.player3, p.player4, p.player5, p.player6,  -- needed for team games!
-        p.pnum1,   p.pnum2,   p.pnum3,   p.pnum4,   p.pnum5,   p.pnum6,  -- needed for team games!
-        p.club,
-        COALESCE(NULLIF(p.Flt, ''), 'A') AS strat, -- deal with Flt=NULL
-        p.Score,
-        p.Pct
-    FROM events e
-    JOIN players p
-      ON 	p.GameId = e.GameId
-			AND p.club   = e.club
-    JOIN my_game_ids mg
+	SELECT
+		e.GameId,
+		e.section,
+		e.gametype,
+		e.scoring,
+		e.movement,
+		e.rounds,
+		p.player_pair_team,
+		p.player1, p.player2, p.player3, p.player4, p.player5, p.player6,  -- needed for team games!
+		p.pnum1,   p.pnum2,   p.pnum3,   p.pnum4,   p.pnum5,   p.pnum6,  -- needed for team games!
+		p.club,
+		COALESCE(NULLIF(p.Flt, ''), 'A') AS strat, -- deal with Flt=NULL
+		p.Score,
+		p.Pct
+	FROM events e
+	JOIN players p
+		ON 	p.GameId = e.GameId
+		AND p.club   = e.club
+	JOIN my_game_ids mg
       ON 	mg.GameId = e.GameId
 			AND mg.club   = e.club
 ),
 
 games_with_dir AS (
-    SELECT
-        g.*,
-        CASE
-            WHEN g.movement IN ('MITCHELL', 'WEB') THEN
-                CASE
-                    WHEN RIGHT(g.player_pair_team,1)='N' THEN 'NS'
-                    WHEN RIGHT(g.player_pair_team,1)='E' THEN 'EW'
-                END
-            ELSE NULL
-        END AS dir
-    FROM games g
+	SELECT
+		g.*,
+		CASE
+			WHEN g.movement IN ('MITCHELL', 'WEB') THEN
+				CASE
+					WHEN RIGHT(g.player_pair_team,1)='N' THEN 'NS'
+					WHEN RIGHT(g.player_pair_team,1)='E' THEN 'EW'
+				END
+			ELSE NULL
+		END AS dir
+	FROM games g
 ),
 
 ranked AS (
     SELECT
         ri.*,
 
-
 		CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 			RANK() OVER ( PARTITION BY ri.GameId, ri.club, ri.dir 
-						  ORDER BY ri.Score DESC )
+				ORDER BY ri.Score DESC )
 			ELSE
 			RANK() OVER ( PARTITION BY ri.GameId, ri.club 
-						  ORDER BY ri.Score DESC )
+				ORDER BY ri.Score DESC )
 		END AS sec_rank_A,
 
-        CASE WHEN ri.strat IN ('B','C') THEN
-            CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
+		CASE WHEN ri.strat IN ('B','C') THEN
+			CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
 					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
-			ELSE
+				ELSE
 				RANK() OVER (
 					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
 					ORDER BY ri.Score DESC
 				)
-            END
-        END AS sec_rank_B,
+			END
+		END AS sec_rank_B,
 
-        CASE WHEN ri.strat = 'C' THEN
-            CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
+		CASE WHEN ri.strat = 'C' THEN
+			CASE WHEN ri.movement IN ('MITCHELL', 'WEB') THEN
 				RANK() OVER (
 					PARTITION BY ri.GameId, ri.club, ri.dir, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
-			ELSE
+				ELSE
 				RANK() OVER (
 					PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
 					ORDER BY ri.Score DESC
 				)
-            END
-        END AS sec_rank_C,
+			END
+		END AS sec_rank_C,
 
-        RANK() OVER ( PARTITION BY ri.GameId, ri.club
-					  ORDER BY ri.Score DESC ) AS ov_rank_A,
+		RANK() OVER ( PARTITION BY ri.GameId, ri.club
+			ORDER BY ri.Score DESC ) AS ov_rank_A,
 
-        CASE WHEN ri.strat IN ('B','C') THEN
-            RANK() OVER (
-                PARTITION BY ri.GameId, ri.club CASE WHEN ri.strat IN ('B','C') THEN 'B' END
-                ORDER BY ri.Score DESC
-            )
-        END AS ov_rank_B,
+		CASE WHEN ri.strat IN ('B','C') THEN
+			RANK() OVER (
+				PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+					ORDER BY ri.Score DESC
+			)
+		END AS ov_rank_B,
 
-        CASE WHEN ri.strat = 'C' THEN
-            RANK() OVER (
-                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
-                ORDER BY ri.Score DESC
-            )
-        END AS ov_rank_C
+		CASE WHEN ri.strat = 'C' THEN
+			RANK() OVER (
+				PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
+					ORDER BY ri.Score DESC
+			)
+		END AS ov_rank_C
 
     FROM games_with_dir ri -- bypassing 'ranked_input'
 ),
+
 tie_groups AS (
-    SELECT
-        r.*,
+	SELECT
+		r.*,
 
-        CASE
-            WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER (PARTITION BY r.GameId, r.club, r.dir)
-            ELSE
-                COUNT(*) OVER (PARTITION BY r.GameId, r.club)
-        END AS pop_sec_A,
+	CASE
+		WHEN r.movement IN ('MITCHELL', 'WEB') THEN
+			COUNT(*) OVER (PARTITION BY r.GameId, r.club, r.dir)
+		ELSE
+			COUNT(*) OVER (PARTITION BY r.GameId, r.club)
+	END 
+	AS pop_sec_A,
 
-        CASE
-            WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
-            ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
-        END AS pop_sec_B,
+	CASE
+		WHEN r.movement IN ('MITCHELL', 'WEB') THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+		ELSE
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+	END 
+	AS pop_sec_B,
 
-        CASE
-            WHEN r.movement IN ('MITCHELL', 'WEB') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
-            ELSE
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
-        END AS pop_sec_C,
+	CASE
+		WHEN r.movement IN ('MITCHELL', 'WEB') THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.dir, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+		ELSE
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+	END 
+	AS pop_sec_C,
 
-        COUNT(*) OVER (PARTITION BY r.GameId, r.club) AS pop_ov_A,
+	COUNT(*) OVER (PARTITION BY r.GameId, r.club) AS pop_ov_A,
 
-        CASE
-            WHEN r.strat IN ('B','C') THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
-        END AS pop_ov_B,
+	CASE
+		WHEN r.strat IN ('B','C') THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat IN ('B','C') THEN 'BC' ELSE 'X' END))
+	END 
+	AS pop_ov_B,
 
-        CASE
-            WHEN r.strat = 'C' THEN
-                COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
-        END AS pop_ov_C,
+	CASE
+		WHEN r.strat = 'C' THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, (CASE WHEN r.strat = 'C' THEN 'C' ELSE 'X' END))
+	END 
+	AS pop_ov_C,
 
-        CASE WHEN r.sec_rank_A IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
-							r.sec_rank_A)
-        END AS tie_sec_A,
+	CASE 
+		WHEN r.sec_rank_A IS NOT NULL THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+				r.sec_rank_A)
+	END 
+	AS tie_sec_A,
 
-        CASE WHEN r.sec_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
-							r.sec_rank_B)
-        END AS tie_sec_B,
+	CASE 
+		WHEN r.sec_rank_B IS NOT NULL THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+				r.sec_rank_B)
+	END 
+	AS tie_sec_B,
 
-        CASE WHEN r.sec_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
-							r.sec_rank_C)
-        END AS tie_sec_C,
+	CASE 
+		WHEN r.sec_rank_C IS NOT NULL THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, CASE WHEN r.movement IN ('MITCHELL', 'WEB') THEN r.dir END,
+				r.sec_rank_C)
+	END 
+	AS tie_sec_C,
 
-        COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_A
-        ) AS tie_ov_A,
+	COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_A
+	) 
+	AS tie_ov_A,
 
-        CASE WHEN r.ov_rank_B IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_B
-            )
-        END AS tie_ov_B,
+	CASE 
+		WHEN r.ov_rank_B IS NOT NULL THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_B
+			)
+	END 
+	AS tie_ov_B,
 
-        CASE WHEN r.ov_rank_C IS NOT NULL THEN
-            COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_C
-            )
-        END AS tie_ov_C
+	CASE 
+		WHEN r.ov_rank_C IS NOT NULL THEN
+			COUNT(*) OVER ( PARTITION BY r.GameId, r.club, r.ov_rank_C
+			)
+	END 
+	AS tie_ov_C
 
-    FROM ranked r
+	FROM ranked r
 ),
 
 min_max AS (
-    SELECT
-        tg.GameId,
-        tg.club,
-        tg.player_pair_team,
-        tg.strat,
-        tg.dir,
+	SELECT
+		tg.GameId,
+		tg.club,
+		tg.player_pair_team,
+		tg.strat,
+		tg.dir,
 
-        -- pair identity
-        tg.pnum1,   tg.pnum2,   tg.pnum3,   tg.pnum4,   tg.pnum5,   tg.pnum6, 
-        tg.player1, tg.player2, tg.player3, tg.player4, tg.player5, tg.player6,
+		-- pair identity
+		tg.pnum1,   tg.pnum2,   tg.pnum3,   tg.pnum4,   tg.pnum5,   tg.pnum6, 
+		tg.player1, tg.player2, tg.player3, tg.player4, tg.player5, tg.player6,
 
-        -- game metadata
-        tg.gametype,
-        tg.scoring,
-        tg.score,
-        tg.movement,
-        tg.rounds,
-        tg.section,
-        tg.Pct,
+		-- game metadata
+		tg.gametype,
+		tg.scoring,
+		tg.score,
+		tg.movement,
+		tg.rounds,
+		tg.section,
+		tg.Pct,
 
-        tg.pop_sec_A AS pop_sec_A,
-        CASE WHEN tg.strat IN ('B','C') THEN tg.pop_sec_B END AS pop_sec_B,
-        CASE WHEN tg.strat IN ('C') THEN tg.pop_sec_C END AS pop_sec_C,
+		tg.pop_sec_A 
+			AS pop_sec_A,
+		CASE WHEN tg.strat IN ('B','C') THEN tg.pop_sec_B END 
+			AS pop_sec_B,
+		CASE WHEN tg.strat IN ('C') THEN tg.pop_sec_C END 
+			AS pop_sec_C,
 
-        tg.pop_ov_A AS pop_ov_A,
-        CASE WHEN tg.strat IN ('B','C') THEN tg.pop_ov_B END AS pop_ov_B,
-        CASE WHEN tg.strat IN ('C') THEN tg.pop_ov_C END AS pop_ov_C,
+		tg.pop_ov_A 
+			AS pop_ov_A,
+		CASE WHEN tg.strat IN ('B','C') THEN tg.pop_ov_B END 
+			AS pop_ov_B,
+		CASE WHEN tg.strat IN ('C') THEN tg.pop_ov_C END 
+			AS pop_ov_C,
 
-        CASE WHEN tg.sec_rank_A IS NOT NULL THEN
-            (tg.sec_rank_A + (tg.sec_rank_A + tg.tie_sec_A - 1)) / 2.0
-        END AS frac_sec_A,
+		CASE WHEN tg.sec_rank_A IS NOT NULL THEN
+				(tg.sec_rank_A + (tg.sec_rank_A + tg.tie_sec_A - 1)) / 2.0
+		END 
+			AS frac_sec_A,
 
-        CASE WHEN tg.sec_rank_B IS NOT NULL THEN
-            (tg.sec_rank_B + (tg.sec_rank_B + tg.tie_sec_B - 1)) / 2.0
-        END AS frac_sec_B,
+		CASE WHEN tg.sec_rank_B IS NOT NULL THEN
+				(tg.sec_rank_B + (tg.sec_rank_B + tg.tie_sec_B - 1)) / 2.0
+		END 
+			AS frac_sec_B,
 
-        CASE WHEN tg.sec_rank_C IS NOT NULL THEN
-            (tg.sec_rank_C + (tg.sec_rank_C + tg.tie_sec_C - 1)) / 2.0
-        END AS frac_sec_C,
+		CASE WHEN tg.sec_rank_C IS NOT NULL THEN
+				(tg.sec_rank_C + (tg.sec_rank_C + tg.tie_sec_C - 1)) / 2.0
+		END 
+			AS frac_sec_C,
 
-        CASE WHEN tg.ov_rank_A IS NOT NULL THEN
-            (tg.ov_rank_A + (tg.ov_rank_A + tg.tie_ov_A - 1)) / 2.0
-        END AS frac_ov_A,
+		CASE WHEN tg.ov_rank_A IS NOT NULL THEN
+				(tg.ov_rank_A + (tg.ov_rank_A + tg.tie_ov_A - 1)) / 2.0
+		END 
+			AS frac_ov_A,
 
-        CASE WHEN tg.ov_rank_B IS NOT NULL THEN
-            (tg.ov_rank_B + (tg.ov_rank_B + tg.tie_ov_B - 1)) / 2.0
-        END AS frac_ov_B,
+		CASE WHEN tg.ov_rank_B IS NOT NULL THEN
+				(tg.ov_rank_B + (tg.ov_rank_B + tg.tie_ov_B - 1)) / 2.0
+		END 
+			AS frac_ov_B,
 
-        CASE WHEN tg.ov_rank_C IS NOT NULL THEN
-            (tg.ov_rank_C + (tg.ov_rank_C + tg.tie_ov_C - 1)) / 2.0
-        END AS frac_ov_C,
+		CASE WHEN tg.ov_rank_C IS NOT NULL THEN
+				(tg.ov_rank_C + (tg.ov_rank_C + tg.tie_ov_C - 1)) / 2.0
+		END 
+			AS frac_ov_C,
 
-        CASE WHEN tg.sec_rank_A IS NOT NULL THEN
-            tg.pop_sec_A
-              - ( (tg.sec_rank_A + (tg.sec_rank_A + tg.tie_sec_A - 1)) / 2.0 )
-              + 1
-        END AS sec_rating_A,
+		CASE WHEN tg.sec_rank_A IS NOT NULL THEN
+				tg.pop_sec_A
+					- ( (tg.sec_rank_A + (tg.sec_rank_A + tg.tie_sec_A - 1)) / 2.0 )
+					+ 1
+		END 
+			AS sec_rating_A,
 
-        CASE WHEN tg.sec_rank_B IS NOT NULL THEN
-            tg.pop_sec_B
-              - ( (tg.sec_rank_B + (tg.sec_rank_B + tg.tie_sec_B - 1)) / 2.0 )
-              + 1
-        END AS sec_rating_B,
+		CASE WHEN tg.sec_rank_B IS NOT NULL THEN
+				tg.pop_sec_B
+					- ( (tg.sec_rank_B + (tg.sec_rank_B + tg.tie_sec_B - 1)) / 2.0 )
+					+ 1
+		END 
+			AS sec_rating_B,
 
-        CASE WHEN tg.sec_rank_C IS NOT NULL THEN
-            tg.pop_sec_C
-              - ( (tg.sec_rank_C + (tg.sec_rank_C + tg.tie_sec_C - 1)) / 2.0 )
-              + 1
-        END AS sec_rating_C,
+		CASE WHEN tg.sec_rank_C IS NOT NULL THEN
+				tg.pop_sec_C
+					- ( (tg.sec_rank_C + (tg.sec_rank_C + tg.tie_sec_C - 1)) / 2.0 )
+					+ 1
+		END 
+			AS sec_rating_C,
 
-        CASE WHEN tg.ov_rank_A IS NOT NULL THEN
-            tg.pop_ov_A
-              - ( (tg.ov_rank_A + (tg.ov_rank_A + tg.tie_ov_A - 1)) / 2.0 )
-              + 1
-        END AS ov_rating_A,
+		CASE WHEN tg.ov_rank_A IS NOT NULL THEN
+				tg.pop_ov_A
+					- ( (tg.ov_rank_A + (tg.ov_rank_A + tg.tie_ov_A - 1)) / 2.0 )
+					+ 1
+		END 
+			AS ov_rating_A,
 
-        CASE WHEN tg.ov_rank_B IS NOT NULL THEN
-            tg.pop_ov_B
-              - ( (tg.ov_rank_B + (tg.ov_rank_B + tg.tie_ov_B - 1)) / 2.0 )
-              + 1
-        END AS ov_rating_B,
+		CASE WHEN tg.ov_rank_B IS NOT NULL THEN
+				tg.pop_ov_B
+					- ( (tg.ov_rank_B + (tg.ov_rank_B + tg.tie_ov_B - 1)) / 2.0 )
+					+ 1
+		END 
+			AS ov_rating_B,
 
-        CASE WHEN tg.ov_rank_C IS NOT NULL THEN
-            tg.pop_ov_C
-              - ( (tg.ov_rank_C + (tg.ov_rank_C + tg.tie_ov_C - 1)) / 2.0 )
-              + 1
-        END AS ov_rating_C
+		CASE WHEN tg.ov_rank_C IS NOT NULL THEN
+				tg.pop_ov_C
+					- ( (tg.ov_rank_C + (tg.ov_rank_C + tg.tie_ov_C - 1)) / 2.0 )
+					+ 1
+		END 
+			AS ov_rating_C
 
     FROM tie_groups tg
     WHERE tg.ov_rank_A IS NOT NULL   -- canonical row: one per pair per game
 ),
+
 team_games AS (
     SELECT mm.* 
     
@@ -2560,97 +2595,109 @@ team_games AS (
 		WHERE mm.gametype = 'teams'
       AND mm.movement = 'Swiss teams'
       AND '".$pnum."' IN (                      -- my team only
-            mm.pnum1, mm.pnum2, mm.pnum3,
-            mm.pnum4, mm.pnum5, mm.pnum6
+				mm.pnum1, mm.pnum2, mm.pnum3,
+				mm.pnum4, mm.pnum5, mm.pnum6
       )
 ),
 
 team_unnested AS (
     SELECT
-        tg.GameId,
-        tg.player_pair_team,
-        tg.club,
-        tg.movement,
-        tg.rounds,
-        tg.strat,
-        tg.scoring,
-        tg.score,
-        tg.Pct,
-        tg.frac_ov_A, tg.frac_ov_B, tg.frac_ov_C,
-        tg.ov_rating_A, tg.ov_rating_B, tg.ov_rating_C,
-        tg.pop_ov_A, tg.pop_ov_B, tg.pop_ov_C,
-        slots.slot,
-        CASE slots.slot
-            WHEN 1 THEN NULLIF(tg.pnum1, '')
-            WHEN 2 THEN NULLIF(tg.pnum2, '')
-            WHEN 3 THEN NULLIF(tg.pnum3, '')
-            WHEN 4 THEN NULLIF(tg.pnum4, '')
-            WHEN 5 THEN NULLIF(tg.pnum5, '')
-            WHEN 6 THEN NULLIF(tg.pnum6, '')
-        END AS teammate_pnum,
-        CASE slots.slot
-            WHEN 1 THEN NULLIF(tg.player1, '')
-            WHEN 2 THEN NULLIF(tg.player2, '')
-            WHEN 3 THEN NULLIF(tg.player3, '')
-            WHEN 4 THEN NULLIF(tg.player4, '')
-            WHEN 5 THEN NULLIF(tg.player5, '')
-            WHEN 6 THEN NULLIF(tg.player6, '')
-        END AS teammate_name
+			tg.GameId,
+			tg.player_pair_team,
+			tg.club,
+			tg.movement,
+			tg.rounds,
+			tg.strat,
+			tg.scoring,
+			tg.score,
+			tg.Pct,
+			tg.frac_ov_A, tg.frac_ov_B, tg.frac_ov_C,
+			tg.ov_rating_A, tg.ov_rating_B, tg.ov_rating_C,
+			tg.pop_ov_A, tg.pop_ov_B, tg.pop_ov_C,
+			slots.slot,
+
+			CASE slots.slot
+				WHEN 1 THEN NULLIF(tg.pnum1, '')
+				WHEN 2 THEN NULLIF(tg.pnum2, '')
+				WHEN 3 THEN NULLIF(tg.pnum3, '')
+				WHEN 4 THEN NULLIF(tg.pnum4, '')
+				WHEN 5 THEN NULLIF(tg.pnum5, '')
+				WHEN 6 THEN NULLIF(tg.pnum6, '')
+			END 
+			AS 
+			teammate_pnum,
+
+			CASE slots.slot
+				WHEN 1 THEN NULLIF(tg.player1, '')
+				WHEN 2 THEN NULLIF(tg.player2, '')
+				WHEN 3 THEN NULLIF(tg.player3, '')
+				WHEN 4 THEN NULLIF(tg.player4, '')
+				WHEN 5 THEN NULLIF(tg.player5, '')
+				WHEN 6 THEN NULLIF(tg.player6, '')
+			END 
+			AS 
+			teammate_name
+
     FROM team_games tg
     JOIN (
-        SELECT 1 AS slot UNION ALL SELECT 2 UNION ALL SELECT 3
-        UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
-    ) AS slots
+			SELECT 1 AS slot UNION ALL SELECT 2 UNION ALL SELECT 3
+			UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
+    ) AS 
+		slots
 ),
 
 team_teammates_only AS (
-    SELECT *
-    FROM team_unnested tu
-    WHERE tu.teammate_pnum <> '".$pnum."'
+	SELECT *
+	FROM team_unnested tu
+	WHERE tu.teammate_pnum <> '".$pnum."'
 ),
 
 team_pivoted AS (
     SELECT
-        GameId,
-        player_pair_team,
-        club,
-        movement,
-        rounds,
-        strat,
-        scoring,
-        score,
-        -- max_score,
-        -- Calc_Pct,
-        Pct,
-        frac_ov_A, frac_ov_B, frac_ov_C,
+		GameId,
+		player_pair_team,
+		club,
+		movement,
+		rounds,
+		strat,
+		scoring,
+		score,
+		-- max_score,
+		-- Calc_Pct,
+		Pct,
+		frac_ov_A, frac_ov_B, frac_ov_C,
 		ov_rating_A, ov_rating_B, ov_rating_C,
 		pop_ov_A, pop_ov_B, pop_ov_C,
         
-        MAX(CASE WHEN rn = 1 THEN teammate_name END) AS teammate1,
-        MAX(CASE WHEN rn = 2 THEN teammate_name END) AS teammate2,
-        MAX(CASE WHEN rn = 3 THEN teammate_name END) AS teammate3,
-        MAX(CASE WHEN rn = 4 THEN teammate_name END) AS teammate4,
-        MAX(CASE WHEN rn = 5 THEN teammate_name END) AS teammate5
+		MAX(CASE WHEN rn = 1 THEN teammate_name END) AS teammate1,
+		MAX(CASE WHEN rn = 2 THEN teammate_name END) AS teammate2,
+		MAX(CASE WHEN rn = 3 THEN teammate_name END) AS teammate3,
+		MAX(CASE WHEN rn = 4 THEN teammate_name END) AS teammate4,
+		MAX(CASE WHEN rn = 5 THEN teammate_name END) AS teammate5
 
     FROM (
-        SELECT
-            tu.*,
-            ROW_NUMBER() OVER (
-                PARTITION BY GameId, club, player_pair_team
-                ORDER BY slot
-            ) AS rn
-        FROM team_teammates_only tu
-    ) AS numbered
+			SELECT
+				tu.*,
+				ROW_NUMBER() OVER (
+					PARTITION BY GameId, club, player_pair_team
+					ORDER BY slot
+				) AS 
+				rn
+
+			FROM team_teammates_only tu
+		) AS 
+		numbered
 
     GROUP BY
-        GameId, club, player_pair_team, 
-				movement, rounds, strat, scoring, score,
-				Pct,
-        frac_ov_A, frac_ov_B, frac_ov_C,
-        ov_rating_A, ov_rating_B, ov_rating_C,
-        pop_ov_A, pop_ov_B, pop_ov_C
+			GameId, club, player_pair_team, 
+			movement, rounds, strat, scoring, score,
+			Pct,
+			frac_ov_A, frac_ov_B, frac_ov_C,
+			ov_rating_A, ov_rating_B, ov_rating_C,
+			pop_ov_A, pop_ov_B, pop_ov_C
 )  -- THIS is the last CTE for teamgames
 ";
+
 }
 
 ##################################################################
@@ -2951,10 +2998,12 @@ function make_spreadsheet($conn, $pnum, $gmqualifier, $logfile) {
 		$ovRnkC=  fractionalRank($r['ovRnkC']) ;
 		$ovRnk_string  = $ovRnkA  . " " . dash($ovRnkB)  . " " .dash($ovRnkC)  ;
 
+		$is_team = ($r['movement'] === 'Swiss teams');
+
 		$secRnkA= fractionalRank($r['secRnkA']) ;
 		$secRnkB= fractionalRank($r['secRnkB']) ;
 		$secRnkC= fractionalRank($r['secRnkC']) ;
-		$secRnk_string = $secRnkA . " " . dash($secRnkB) . " " .dash($secRnkC)  ;
+		$secRnk_string = $is_team ? '' : $secRnkA . " " . dash($secRnkB) . " " .dash($secRnkC)  ;
 
 		array_push ($SSrow, $ovRnk_string) ;  
 		array_push ($SSrow, $secRnk_string) ;  
@@ -2963,9 +3012,9 @@ function make_spreadsheet($conn, $pnum, $gmqualifier, $logfile) {
 		$ovRtg_string .= (dash($r['ovRtgB']) !== "-") ?  $r['ovRtgB'] . " of " . $r['pop_ov_B'] . " " : " -";
 		$ovRtg_string .= (dash($r['ovRtgC']) !== "-") ?  $r['ovRtgC'] . " of " . $r['pop_ov_C'] : " -";
 
-		$secRtg_string = $r['secRtgA'] . " of " . $r['pop_sec_A'] . " " ; // strat A sec rating always present 
-		$secRtg_string .= (dash($r['secRtgB']) !== "-") ?  $r['secRtgB'] . " of " . $r['pop_sec_B'] . " " : " -";
-		$secRtg_string .= (dash($r['secRtgC']) !== "-") ?  $r['secRtgC'] . " of " . $r['pop_sec_C'] : " -";
+		$secRtg_string = $is_team ? '' : $r['secRtgA'] . " of " . $r['pop_sec_A'] . " " ; // strat A sec rating always present 
+		$secRtg_string .= $is_team ? '' : ((dash($r['secRtgB']) !== "-") ?  $r['secRtgB'] . " of " . $r['pop_sec_B'] . " " : " -");
+		$secRtg_string .= $is_team ? '' : ((dash($r['secRtgC']) !== "-") ?  $r['secRtgC'] . " of " . $r['pop_sec_C'] : " -");
 
 		array_push ($SSrow, $ovRtg_string) ; 
 		array_push ($SSrow, $secRtg_string) ; 
@@ -4015,11 +4064,15 @@ final AS (
     
     FROM games_with_pair_results g
     LEFT JOIN min_max mm
-      ON mm.GameId = g.GameId
-     AND mm.club   = g.club
-     AND '".$pnum."'  IN (mm.pnum1, mm.pnum2)
-     AND g.pardnum IN (mm.pnum1, mm.pnum2)
+			ON  mm.GameId = g.GameId
+			AND mm.club   = g.club
+			AND '".$pnum."' IN (
+        mm.pnum1, mm.pnum2, mm.pnum3,
+        mm.pnum4, mm.pnum5, mm.pnum6
+			)
 
+--   AND '".$pnum."'  IN (mm.pnum1, mm.pnum2) limits to pair games only 
+--   AND g.pardnum IN (mm.pnum1, mm.pnum2) limits to pair games only 
 
 	GROUP BY
 		g.GameId,
