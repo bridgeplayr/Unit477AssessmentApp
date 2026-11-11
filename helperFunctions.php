@@ -1475,7 +1475,7 @@ ranked AS (
 
     CASE WHEN ri.strat IN ('B','C') THEN
       RANK() OVER (
-        PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+        PARTITION BY ri.GameId, ri.club CASE WHEN ri.strat IN ('B','C') THEN 'B' END
         ORDER BY ri.Score DESC
         )
     END AS ov_rank_B,
@@ -2378,7 +2378,7 @@ ranked AS (
 
         CASE WHEN ri.strat IN ('B','C') THEN
             RANK() OVER (
-                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+                PARTITION BY ri.GameId, ri.club CASE WHEN ri.strat IN ('B','C') THEN 'B' END
                 ORDER BY ri.Score DESC
             )
         END AS ov_rank_B,
@@ -3510,13 +3510,14 @@ ranked AS (
            ============================================================ */
 
         /* ---------- Overall A (all pairs) ---------- */
-        RANK() OVER ( PARTITION BY ri.GameId, ri.club,
+        RANK() OVER ( PARTITION BY ri.GameId, ri.club
 					  ORDER BY ri.Score DESC ) AS ov_rank_A,
 
         /* ---------- Overall B (B+C only) ---------- */
         CASE WHEN ri.strat IN ('B','C') THEN
             RANK() OVER (
-                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat IN ('B','C') THEN 'B' END
+								PARTITION BY ri.GameId, ri.club, 
+									CASE WHEN ri.strat IN ('B','C') THEN 'B' END
                 ORDER BY ri.Score DESC
             )
         END AS ov_rank_B,
@@ -3524,7 +3525,8 @@ ranked AS (
         /* ---------- Overall C (C only) ---------- */
         CASE WHEN ri.strat = 'C' THEN
             RANK() OVER (
-                PARTITION BY ri.GameId, ri.club, CASE WHEN ri.strat = 'C' THEN 'C' END
+                PARTITION BY ri.GameId, ri.club, 
+									CASE WHEN ri.strat = 'C' THEN 'C' END
                 ORDER BY ri.Score DESC
             )
         END AS ov_rank_C
@@ -3711,20 +3713,67 @@ min_max AS (
 pair_games AS (
     SELECT
         mm.*,
-        CASE 
-            WHEN '".$pnum."' = mm.pnum1 THEN mm.pnum2
-            ELSE mm.pnum1
+
+        CASE
+					/* Indy: no partner */
+					WHEN mm.gametype = 'indy' THEN NULL
+
+					/* Team: all players except the queried player */
+					WHEN NULLIF(mm.pnum3, '') IS NOT NULL THEN
+						CONCAT_WS(
+							CHAR(10),
+							CASE WHEN mm.pnum1 <> '".$pnum."'
+									 THEN NULLIF(mm.pnum1, '') END,
+							CASE WHEN mm.pnum2 <> '".$pnum."'
+									 THEN NULLIF(mm.pnum2, '') END,
+							CASE WHEN mm.pnum3 <> '".$pnum."'
+									 THEN NULLIF(mm.pnum3, '') END,
+							CASE WHEN mm.pnum4 <> '".$pnum."'
+									 THEN NULLIF(mm.pnum4, '') END,
+							CASE WHEN mm.pnum5 <> '".$pnum."'
+									 THEN NULLIF(mm.pnum5, '') END,
+							CASE WHEN mm.pnum6 <> '".$pnum."'
+									 THEN NULLIF(mm.pnum6, '') END
+						)
+
+					/* Pair: the other member of the pair */
+					WHEN '".$pnum."' = mm.pnum1 THEN mm.pnum2
+					ELSE mm.pnum1
         END AS pardnum,
 
-        -- Partner name
-        CASE 
-            WHEN '".$pnum."' = mm.pnum1 THEN mm.player2
-            ELSE mm.player1
-        END AS pardName
+        CASE
+					/* Indy: no partner */
+					WHEN mm.gametype = 'indy' THEN NULL
 
-    FROM min_max mm
-    WHERE '".$pnum."' IN (mm.pnum1, mm.pnum2, mm.pnum3, mm.pnum4, mm.pnum5, mm.pnum6)
-      -- AND NULLIF(mm.pnum3, '') IS NULL
+					/* Team: all players except the queried player */
+					WHEN NULLIF(mm.pnum3, '') IS NOT NULL THEN
+						CONCAT_WS(
+							CHAR(10),
+							CASE WHEN mm.pnum1 <> '".$pnum."'
+									 THEN NULLIF(mm.player1, '') END,
+							CASE WHEN mm.pnum2 <> '".$pnum."'
+									 THEN NULLIF(mm.player2, '') END,
+							CASE WHEN mm.pnum3 <> '".$pnum."'
+									 THEN NULLIF(mm.player3, '') END,
+							CASE WHEN mm.pnum4 <> '".$pnum."'
+									 THEN NULLIF(mm.player4, '') END,
+							CASE WHEN mm.pnum5 <> '".$pnum."'
+									 THEN NULLIF(mm.player5, '') END,
+							CASE WHEN mm.pnum6 <> '".$pnum."'
+									 THEN NULLIF(mm.player6, '') END
+						)
+
+					/* Pair: the other member of the pair */
+					WHEN '".$pnum."' = mm.pnum1 THEN mm.player2
+					ELSE mm.player1
+				END AS pardName
+
+			FROM min_max mm
+			WHERE '".$pnum."' IN (
+					mm.pnum1, mm.pnum2, mm.pnum3,
+					mm.pnum4, mm.pnum5, mm.pnum6
+			)
+			-- AND NULLIF(mm.pnum3, '') IS NULL
       -- AND mm.movement NOT LIKE 'Swiss%'
 ),
 
@@ -3839,7 +3888,7 @@ games_with_pair_results AS (
         pg.scoring,
         re.board_id,
         re.my_seat,
-		re.pard_seat,
+				re.pard_seat,
         re.role,
         re.ETF,
         re.OLE,
@@ -3912,28 +3961,28 @@ final AS (
 		SUM(g.def_mtchpts)        AS dfndng_mtchpts,
 		SUM(g.PO_mtchpts)         AS pass_mtchpts,
 
-        SUM(g.role = 'me_declr')   AS hands_I_declared,
-        SUM(g.role = 'pard_declr') AS hands_pard_declared,
-	 -- SUM(g.role = 'dfndng')     AS hands_defended,
+    SUM(g.role = 'me_declr')   AS hands_I_declared,
+    SUM(g.role = 'pard_declr') AS hands_pard_declared,
+ -- SUM(g.role = 'dfndng')     AS hands_defended,
 		SUM(g.role = 'me_leading' or g.role = 'pard_leading') AS hands_defended,
-        SUM(g.role = 'passout')    AS passout_count,
+    SUM(g.role = 'passout')    AS passout_count,
 
 		SUM(g.role = 'me_leading')   AS hands_me_leading,
-        SUM(g.role = 'pard_leading') AS hands_pard_leading,
-        SUM(g.role = 'me_declr' or g.role = 'pard_declr') AS hands_declaring,
+    SUM(g.role = 'pard_leading') AS hands_pard_leading,
+    SUM(g.role = 'me_declr' or g.role = 'pard_declr') AS hands_declaring,
         
-        SUM(CASE WHEN g.role = 'me_declr'   THEN g.ETF END) AS ETF_me,
-        SUM(CASE WHEN g.role = 'pard_declr' THEN g.ETF END) AS ETF_pard,
-				-- ETF<0 on defense means you gave away undeserved overtricks!
-        -- SUM(CASE WHEN g.role = 'dfndng'     THEN 0 - g.ETF END) AS ETF_defense,
-        SUM(CASE WHEN (g.role = 'pard_leading' OR g.role = 'me_leading') THEN 0 - g.ETF END) 
+    SUM(CASE WHEN g.role = 'me_declr'   THEN g.ETF END) AS ETF_me,
+    SUM(CASE WHEN g.role = 'pard_declr' THEN g.ETF END) AS ETF_pard,
+	  	-- ETF<0 on defense means you gave away undeserved overtricks!
+      -- SUM(CASE WHEN g.role = 'dfndng'     THEN 0 - g.ETF END) AS ETF_defense,
+    SUM(CASE WHEN (g.role = 'pard_leading' OR g.role = 'me_leading') THEN 0 - g.ETF END) 
 			AS ETF_defense,
 
 		-- NEW: OLE buckets
 		SUM(CASE WHEN g.role = 'me_leading'   THEN g.OLE END) AS OLE_me,
 		SUM(CASE WHEN g.role = 'pard_leading' THEN g.OLE END) AS OLE_pard,
-        -- SUM(CASE WHEN g.role = 'opp_leading'  THEN g.OLE END) AS OLE_opp,
-        SUM(CASE WHEN g.role = 'me_declr' or g.role = 'pard_declr' THEN 0 - g.OLE END) 
+     -- SUM(CASE WHEN g.role = 'opp_leading'  THEN g.OLE END) AS OLE_opp,
+    SUM(CASE WHEN g.role = 'me_declr' or g.role = 'pard_declr' THEN 0 - g.OLE END) 
 			AS OLE_opp,
 
         mm.frac_ov_A,  -- AS ovkA,
@@ -3973,21 +4022,21 @@ final AS (
 
 
 	GROUP BY
-        g.GameId,
-        g.club,
-        g.pardnum,
-        -- g.pardName,
-        g.gametype,
-        g.movement,
-        g.strat,
-        g.Pct,
-        g.top,
-        mm.frac_ov_A,    mm.frac_ov_B,    mm.frac_ov_C,
-        mm.frac_sec_A,   mm.frac_sec_B,   mm.frac_sec_C,
-        mm.ov_rating_A,  mm.ov_rating_B,  mm.ov_rating_C,
-        mm.pop_ov_A,     mm.pop_ov_B,     mm.pop_ov_C,
-        mm.sec_rating_A, mm.sec_rating_B, mm.sec_rating_C,
-        mm.pop_sec_A,    mm.pop_sec_B,    mm.pop_sec_C
+		g.GameId,
+		g.club,
+		g.pardnum,
+		-- g.pardName,
+		g.gametype,
+		g.movement,
+		g.strat,
+		g.Pct,
+		g.top,
+		mm.frac_ov_A,    mm.frac_ov_B,    mm.frac_ov_C,
+		mm.frac_sec_A,   mm.frac_sec_B,   mm.frac_sec_C,
+		mm.ov_rating_A,  mm.ov_rating_B,  mm.ov_rating_C,
+		mm.pop_ov_A,     mm.pop_ov_B,     mm.pop_ov_C,
+		mm.sec_rating_A, mm.sec_rating_B, mm.sec_rating_C,
+		mm.pop_sec_A,    mm.pop_sec_B,    mm.pop_sec_C
 
 ),
 
@@ -4033,37 +4082,37 @@ SELECT
 
     ROUND(100 * f.passout_count       / NULLIF(f.boards_played, 0), 1) AS PO_frq,
     
-	ROUND(100 * f.my_mtchpts     / NULLIF(f.hands_I_declared * f.top, 0), 1) AS my_dclr_scr,
+		ROUND(100 * f.my_mtchpts     / NULLIF(f.hands_I_declared * f.top, 0), 1) AS my_dclr_scr,
 
-	ROUND(100 * f.pard_mtchpts   / NULLIF(f.hands_pard_declared * f.top, 0), 1) AS pard_dclr_scr,
+		ROUND(100 * f.pard_mtchpts   / NULLIF(f.hands_pard_declared * f.top, 0), 1) AS pard_dclr_scr,
 
-	ROUND(100 * f.dfndng_mtchpts / NULLIF(f.hands_defended * f.top, 0), 1) AS def_scr,
+		ROUND(100 * f.dfndng_mtchpts / NULLIF(f.hands_defended * f.top, 0), 1) AS def_scr,
 
-	ROUND(100 * f.pass_mtchpts   / NULLIF(f.passout_count * f.top, 0), 1) AS PO_scr,
+		ROUND(100 * f.pass_mtchpts   / NULLIF(f.passout_count * f.top, 0), 1) AS PO_scr,
 
     -- ETFs
-    f.ETF_me,
-    f.ETF_pard,
-    f.ETF_defense,
-    f.OLE_me,
-	f.OLE_pard,
-	f.OLE_opp,
+  	f.ETF_me,
+  	f.ETF_pard,
+  	f.ETF_defense,
+  	f.OLE_me,
+		f.OLE_pard,
+		f.OLE_opp,
 
     -- Overall rankings
-	f.frac_ov_A,    f.frac_ov_B,    f.frac_ov_C,        
+		f.frac_ov_A,    f.frac_ov_B,    f.frac_ov_C,        
 
     -- Section rankings
-	f.frac_sec_A,   f.frac_sec_B,   f.frac_sec_C,
+		f.frac_sec_A,   f.frac_sec_B,   f.frac_sec_C,
     
     -- Overall ratings
-	f.ov_rating_A,  f.pop_ov_A,
-    f.ov_rating_B,  f.pop_ov_B,
-    f.ov_rating_C,  f.pop_ov_C,
+		f.ov_rating_A,  f.pop_ov_A,
+		f.ov_rating_B,  f.pop_ov_B,
+		f.ov_rating_C,  f.pop_ov_C,
 
     -- Section ratings
-	f.sec_rating_A, f.pop_sec_A, 
-    f.sec_rating_B, f.pop_sec_B,
-    f.sec_rating_C, f.pop_sec_C
+		f.sec_rating_A, f.pop_sec_A, 
+		f.sec_rating_B, f.pop_sec_B,
+		f.sec_rating_C, f.pop_sec_C
 
 FROM final f
 JOIN partner_counts pc ON pc.pardnum = f.pardnum
@@ -4078,16 +4127,23 @@ SELECT
     club,
     pardnum,
     pardName,
-    games_together,
+--  games_together, # pairs only; blank for indy and team games
+
+		CASE
+			WHEN gametype = 'indy' THEN NULL
+			WHEN movement = 'Swiss teams' THEN NULL
+			ELSE games_together
+		END AS games_together,
+
     gametype,
     rating,
     movement,
     CASE scoring
-		WHEN 'VICTORY POINT' THEN 'VP'
-        WHEN 'WIN-LOSS' 	 THEN 'W-L'
-        WHEN 'MATCHPOINTS'   THEN 'Mtchpts'
+			WHEN 'VICTORY POINT' THEN 'VP'
+			WHEN 'WIN-LOSS' 	 THEN 'W-L'
+			WHEN 'MATCHPOINTS'   THEN 'Mtchpts'
     END AS ScrMethod,
-	strat,
+		strat,
     Pct, award1, color1, award2, color2, reason,
     boards_played,
 
@@ -4113,26 +4169,26 @@ SELECT
     ETF_pard,
     ETF_defense,
     OLE_me,
-	OLE_pard,
-	OLE_opp,
+		OLE_pard,
+		OLE_opp,
 
     -- Cleaned Overall rankings
-	clean_num(frac_ov_A) AS ovRnkA,    
+		clean_num(frac_ov_A) AS ovRnkA,    
     clean_num(frac_ov_B) AS ovRnkB,    
     clean_num(frac_ov_C) AS ovRnkC,        
 
     -- Cleaned Section rankings
-	clean_num(frac_sec_A) AS secRnkA,   
+		clean_num(frac_sec_A) AS secRnkA,   
     clean_num(frac_sec_B) AS secRnkB,   
     clean_num(frac_sec_C) AS secRnkC,
     
     -- Cleaned Overall ratings
-	clean_num(ov_rating_A) AS ovRtgA,  pop_ov_A,
+		clean_num(ov_rating_A) AS ovRtgA,  pop_ov_A,
     clean_num(ov_rating_B) AS ovRtgB,  pop_ov_B,
     clean_num(ov_rating_C) AS ovRtgC,  pop_ov_C,
 
     -- Cleaned Section ratings
-	clean_num(sec_rating_A) AS secRtgA, pop_sec_A, 
+		clean_num(sec_rating_A) AS secRtgA, pop_sec_A, 
     clean_num(sec_rating_B) AS secRtgB, pop_sec_B,
     clean_num(sec_rating_C) AS secRtgC, pop_sec_C
     
