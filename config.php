@@ -1,5 +1,5 @@
 <?php
-define('APP_VERSION', '1.1');
+define('APP_VERSION', '1.2');
 
 date_default_timezone_set('America/Los_Angeles'); // PDT/PST
 

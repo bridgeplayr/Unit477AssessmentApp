@@ -1691,7 +1691,7 @@ top_partners AS (
     FROM partner_counts pc
     CROSS JOIN min_games mg
     WHERE pc.games_together >= mg.min_games
-       OR pc.games_together > 20
+       OR pc.games_together > 10
 ),
 
 results_enriched AS (
@@ -2027,8 +2027,6 @@ ORDER BY
 function get_partner_details($conn, $pnum, $gmqualifier) {
 	// global $pair_sql1 ;
 
-	$pair_sql1 = build_pair_sql1($pnum);
-
 	$pair_sql_hdr =
 "WITH
 my_game_ids AS (
@@ -2117,6 +2115,8 @@ ORDER BY
 	games_together DESC,
 		pardnum, GameId ;"
 ;
+
+	$pair_sql1 = build_pair_sql1($pnum);
 
 	$pair_details_sql = $pair_sql_hdr . $pair_sql1 . $pair_sql2;
 	$result = mysqli_query($conn, $pair_details_sql);
@@ -2662,8 +2662,8 @@ team_pivoted AS (
 		strat,
 		scoring,
 		score,
-		-- max_score,
-		-- Calc_Pct,
+--  max_score,
+--  Calc_Pct,
 		Pct,
 		frac_ov_A, frac_ov_B, frac_ov_C,
 		ov_rating_A, ov_rating_B, ov_rating_C,
@@ -2761,8 +2761,8 @@ SELECT
   END AS ScrMethod,
   rounds,
 	score,
-    -- max_score,
-    -- Calc_Pct,
+-- max_score,
+-- Calc_Pct,
   Pct,
   teammate1,
   teammate2,
@@ -2841,14 +2841,14 @@ teammate_summary AS (
 ) -- THIS is the last CTE for teammate_summary
 
 SELECT
-    teammate_pnum,
-    teammate_name,
-    games_together,
-    avg_pct AS avg_Score,
+	teammate_pnum,
+	teammate_name,
+	games_together,
+	avg_pct AS avg_Score,
 
-    clean_num(raw_ovRtgA) AS avgRtngA,
-    clean_num(raw_ovRtgB) AS avgRtngB,
-    clean_num(raw_ovRtgC) AS avgRtngC
+	clean_num(raw_ovRtgA) AS avgRtngA,
+	clean_num(raw_ovRtgB) AS avgRtngB,
+	clean_num(raw_ovRtgC) AS avgRtngC
 
 FROM teammate_summary
 WHERE games_together > 2

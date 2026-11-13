@@ -344,7 +344,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   	// --------------------------------------------------------
 		// Query3a - Show detailed perf measures for each partner 
 		// who has played more than 10% of the total times played 
-		// or more than 20 times 
+		// or more than 10 times 
   	// --------------------------------------------------------
 		if ($query3) {
 			$results['partner_details'] = '';
@@ -368,7 +368,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 			} else { // build the table 
 
 				// Section/Query3a Title
-				$html = "<h1 style='text-align:center'>Performance of $pNAME with partners who played more than 20 times, or more than 10% of the total.</h1>";
+				$html = "<h1 style='text-align:center'>Performance of $pNAME with partners who played more than 10 times, or more than 10% of the total.</h1>";
 				$html .= "<br>";
 
 				$currentPardnum = null;
@@ -387,21 +387,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				$total_secPopA= 0; 	$total_secPopB= 0; $total_secPopC= 0;
 
 				$emitFooter = function() use (
-						&$html,
-						&$total_pct, 
-						&$total_PlyrFrq, &$total_PlyrETF, &$total_PlyrOLE,
-						&$total_pardFrq, &$total_pardETF, &$total_pardOLE,
-						&$total_DefFrq, &$total_DefETF, &$total_oppOLE,
-						&$total_ovRtgA, &$total_ovRtgB, &$total_ovRtgC,
-						&$total_ovPopA, &$total_ovPopB, &$total_ovPopC,
-						&$total_secRtgA, &$total_secRtgB, &$total_secRtgC,
-						&$total_secPopA, &$total_secPopB, &$total_secPopC,
-						&$count
+					&$html,
+					&$total_pct, 
+					&$total_PlyrFrq, &$total_PlyrETF, &$total_PlyrOLE,
+					&$total_pardFrq, &$total_pardETF, &$total_pardOLE,
+					&$total_DefFrq, &$total_DefETF, &$total_oppOLE,
+					&$total_ovRtgA, &$total_ovRtgB, &$total_ovRtgC,
+					&$total_ovPopA, &$total_ovPopB, &$total_ovPopC,
+					&$total_secRtgA, &$total_secRtgB, &$total_secRtgC,
+					&$total_secPopA, &$total_secPopB, &$total_secPopC,
+					&$count
 				) {
 
-						// if ($count === 0) return; // inside controller, return=exit!!
-
-						// compute averages (your existing code)
+						// compute averages
 						$avg_pct       = sprintf("%8.1f", $total_pct / $count) . "%";
 						$avg_PlyrFrq   = sprintf("%8.1f", $total_PlyrFrq / $count) . "%";
 						$avg_PlyrETF   = sprintf("%8.2f", $total_PlyrETF / $count);
@@ -434,7 +432,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 																	fmt_pct($avg_secRtgC),
 																]);
 
-						// emit footer HTML (your existing code)
+						// emit footer HTML
 						$html .= "</tbody>";
 						$html .= 
 							"<tfoot>
@@ -886,8 +884,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
   	// --------------------------------------------------------
 		// Query4a - Show perf measures for each team game with 
-		// teammates who have played more than 10% of the total times 
-		// played or more than 20 times 
+		// teammates who have played more than 2 times 
   	// --------------------------------------------------------
 		if ($query4) {
 			$results['teamGame_details'] = '';
@@ -915,7 +912,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 				$total_ovPopA= 0; 	$total_ovPopB= 0;  $total_ovPopC= 0;
 
 				// Section/Query4a Title
-				$html = "<h1 style='text-align:center'>Performance of $pNAME with teammates who played more than 20 times, or more than 10% of the total.</h1>";
+				$html = "<h1 style='text-align:center'>Performance of $pNAME with teammates who played together more than 2 times.</h1>";
 				$html .= "<br>";
 
 				// Start a new table for this game
