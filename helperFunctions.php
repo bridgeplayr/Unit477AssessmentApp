@@ -990,6 +990,13 @@ function playernum($pname, $conn) { # provide player's name; return playernumber
 	// if no fn match, create list of lns and present to user: list of [pnum, name] arrays
 
 	$result = mysqli_query($conn, $sql);
+
+	if (!$result) {
+			error_log("SQL ERROR in playernum(): " . mysqli_error($conn));
+			error_log("SQL QUERY: " . $sql);
+			return;
+	}
+	
   $nmatches = mysqli_num_rows($result) ;
 
 	if ($nmatches == 1) { # found 1 match - if fn+ln, yay!
@@ -1037,6 +1044,13 @@ function playernum($pname, $conn) { # provide player's name; return playernumber
 		"LIKE '".$first."%' AND LAST_NAME LIKE '".$last."%' AND (PLAYER_NO != '') ORDER BY LAST_NAME, FIRST_NAME;";
 
 		$result = mysqli_query($conn, $sql);
+
+		if (!$result) {
+				error_log("SQL ERROR in playernum(): " . mysqli_error($conn));
+				error_log("SQL QUERY: " . $sql);
+				return;
+		}
+	
   	$nmatches = mysqli_num_rows($result) ;
 
 		if ($nmatches == 1) { # found 1 match - yay!
@@ -1061,10 +1075,11 @@ function playernum($pname, $conn) { # provide player's name; return playernumber
         $list[$pnum] = array($name,$city,$st);# assoc array with key $pnum
       }
       return $list; # list of matches
-		} else {
-			# debug
-			# echo "$sql failed<br>";
-			return;
+			#  If no match, don't return yet!
+#		} else {
+#			# debug
+#			# echo "$sql failed<br>";
+#			return;
 		}
 
 		// now try with ln only search
@@ -1075,13 +1090,21 @@ function playernum($pname, $conn) { # provide player's name; return playernumber
 		}
 		# debug
 		# echo "trying only last name = $last search <br>";
-  $lastname_sql = 
-	  "SELECT LAST_NAME, FIRST_NAME, city, state, PLAYER_NO FROM ACBLPlayerDBASE WHERE " .  
-	  "LAST_NAME LIKE '".$last."%' AND PLAYER_NO != '' ORDER BY LAST_NAME, FIRST_NAME;"; // what if Van Fleet, e.g.
+		# what if Van Fleet, e.g.
+  	$lastname_sql = 
+			"SELECT LAST_NAME, FIRST_NAME, city, state, PLAYER_NO FROM ACBLPlayerDBASE WHERE " .  
+			"LAST_NAME LIKE '".$last."%' AND PLAYER_NO != '' ORDER BY LAST_NAME, FIRST_NAME;"; 
 
 		$sql = $lastname_sql;
 
 		$result = mysqli_query($conn, $sql);
+
+		if (!$result) {
+				error_log("SQL ERROR in playernum(): " . mysqli_error($conn));
+				error_log("SQL QUERY: " . $sql);
+				return;
+		}
+	
   	$nmatches = mysqli_num_rows($result) ;
 
   	if ($nmatches >= 1) { 
@@ -1136,6 +1159,13 @@ function playername($pnum, $conn) { # provide playernumber; return player's name
 #    "SELECT FIRST_NAME, LAST_NAME FROM mplistwnames WHERE PLAYER_NO =$pnum ;" ;
 
   $result = mysqli_query($conn, $name_sql);
+
+	if (!$result) {
+			error_log("SQL ERROR in playername(): " . mysqli_error($conn));
+			error_log("SQL QUERY: " . $name_sql);
+			return NULL;
+	}
+	
   if (mysqli_num_rows($result) > 0) {
     $row = mysqli_fetch_assoc($result); 
     return $row["FIRST_NAME"] . " " . $row["LAST_NAME"];
@@ -1364,6 +1394,12 @@ ORDER BY
 
 	$result = mysqli_query($conn, $partner_sql);
 
+	if (!$result) {
+			error_log("SQL ERROR in get_all_partners(): " . mysqli_error($conn));
+			error_log("SQL QUERY: " . $partner_sql);
+			return [];
+	}
+	
   $rows = [];
   while ($row = mysqli_fetch_assoc($result)) {
     $rows[] = $row;
@@ -2120,6 +2156,12 @@ ORDER BY
 
 	$pair_details_sql = $pair_sql_hdr . $pair_sql1 . $pair_sql2;
 	$result = mysqli_query($conn, $pair_details_sql);
+
+	if (!$result) {
+			error_log("SQL ERROR in get_partner_details(): " . mysqli_error($conn));
+			error_log("SQL QUERY: " . $pair_details_sql);
+			return [];
+	}
 
   $rows = [];
   while ($row = mysqli_fetch_assoc($result)) {
@@ -4777,9 +4819,6 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 		return [];
 	}
 
-
-	$t_tmp0 = hrtime(true);
-
 	$tmp_create_sql = "
 			CREATE TEMPORARY TABLE tmp_my_game_ids AS
 			SELECT DISTINCT
@@ -4831,28 +4870,23 @@ function get_HCP_by_board($conn, $pnum, $gmqualifier, $logfile) {
 		return [];
 	}
 
-	$t_tmp1 = hrtime(true);
-
+	$tmp_count_sql = "SELECT COUNT(*) AS game_count FROM tmp_my_game_ids";
 	$tmp_count_result = mysqli_query(
-		$conn,
-		"SELECT COUNT(*) AS game_count FROM tmp_my_game_ids"
+		$conn, $tmp_count_sql
 	);
 
-	$tmp_game_count = 0;
-
-	if ($tmp_count_result) {
-		$tmp_count_row = mysqli_fetch_assoc($tmp_count_result);
-		$tmp_game_count = (int) $tmp_count_row['game_count'];
+	if (!$tmp_count_result) {
+		error_log("SQL ERROR: " . mysqli_error($conn));
+		error_log("SQL QUERY: " . $tmp_count_sql);
+		return [];
 	}
+	
+	$tmp_count_row = mysqli_fetch_assoc($tmp_count_result);
+	$tmp_game_count = (int) $tmp_count_row['game_count'];
 
-	fwrite(
-		$logfile,
-		sprintf(
-			"\t%.6f s to build tmp_my_game_ids; games: %d\n",
-       ($t_tmp1 - $t_tmp0) / 1e9,
-       $tmp_game_count
-    )
-	);
+	if ($tmp_game_count === 0) {
+			return [];
+	}
 
 	$HCP_Hand_sql = "
     SELECT STRAIGHT_JOIN
